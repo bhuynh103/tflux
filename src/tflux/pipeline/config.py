@@ -5,7 +5,7 @@ Created on Sun Jul 20 18:17:16 2025
 @author: bhuyn
 """
 # Constants
-DATA_DIR_PATH = 'data/raw/temp/WT'
+DATA_DIR_PATH = 'data/raw/all-data/LatB/WTvsLabB_0.5uMLatB_experimental'
 PAIR_DIRECTORY = "/Users/bhuyn/Desktop/TFlux/figure-directories-paired"
 
 CROP_PERCENT = 5

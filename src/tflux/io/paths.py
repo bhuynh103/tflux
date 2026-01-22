@@ -82,12 +82,3 @@ def get_directories_in_path(path):
     except PermissionError:
         print(f"Error: Permission denied to access '{path}'.")
     return directories
-
-
-### DIRECTORY PATHS ###
-# "data/raw/WT"
-# "data/raw/WT-selected"
-# "data/raw/WTvsBleb_experimental"
-# "data/raw/WTvsBleb_control"
-# "data/raw/WTvsLabB_0.5uMLatB_experimental"
-# "data/raw/WTvsLabB_0.5uMLatB_control"
