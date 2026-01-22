@@ -7,12 +7,12 @@ Created on Wed Dec 11 00:33:25 2024
 @author: Brain Huynh
 """
 
-import config
+import tflux.pipeline.config as config
 # import preprocessing
-import analysis
-import visualization
-import figures
-import figures2
+import tflux.analysis.analysis as analysis
+import tflux.plotting.visualization as visualization
+import tflux.plotting.figures as figures
+import tflux.plotting.figures2 as figures2
 import pandas as pd
 import matplotlib.pyplot as plt
 import time

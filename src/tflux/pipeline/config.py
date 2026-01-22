@@ -33,11 +33,3 @@ include_visualizations = True
 
 process_batch_directory = False
 include_figures = True
-
-### DIRECTORY PATHS ###
-# "/Users/bhuyn/Desktop/TFlux/WT"
-# "/Users/bhuyn/Desktop/TFlux/WT-selected"
-# "/Users/bhuyn/Desktop/TFlux/WTvsBleb_experimental"
-# "/Users/bhuyn/Desktop/TFlux/WTvsBleb_control"
-# "/Users/bhuyn/Desktop/TFlux/WTvsLabB_0.5uMLatB_experimental"
-# "/Users/bhuyn/Desktop/TFlux/WTvsLabB_0.5uMLatB_control"

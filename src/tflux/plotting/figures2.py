@@ -8,7 +8,7 @@ Created on Fri Oct 24 09:12:38 2025
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
-import config
+import tflux.pipeline.config as config
 import pandas as pd
 import seaborn as sns
 from scipy import stats

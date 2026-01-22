@@ -11,7 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 
-import config
+import tflux.pipeline.config as config
 
 
 def violin_comparison():
