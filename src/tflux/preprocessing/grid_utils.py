@@ -8,7 +8,7 @@ Created on Sun Jul 20 18:20:51 2025
 import numpy as np
 import pandas as pd
 import config
-from junction import Junction
+from types import Junction
 
 # Load .obj into DataFrame of vertex coordinate data.
 def load_obj_vertices(filename):

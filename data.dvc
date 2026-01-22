@@ -1,6 +1,6 @@
 outs:
-- md5: cabb58b756772f8652bf43cc08aa049d.dir
-  size: 7231121193
-  nfiles: 120
+- md5: 844152b89090f0dacc2ef9518196b6ed.dir
+  size: 5257374867
+  nfiles: 78
   hash: md5
   path: data
