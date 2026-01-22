@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 # Load .obj into DataFrame of vertex coordinate data.
 def load_obj_vertices(filename):
@@ -24,3 +25,5 @@ def load_obj_vertices(filename):
     df_xyz = pd.DataFrame(vertices, dtype='f4', columns=["x", "y", "z"][:len(vertices[0])])
     vertices_array_tyx = np.array(df_xyz.rename(columns={"x": "t", "z": "x"}))
     return vertices_array_tyx
+
+

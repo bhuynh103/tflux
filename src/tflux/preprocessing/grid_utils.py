@@ -6,133 +6,122 @@ Created on Sun Jul 20 18:20:51 2025
 """
 
 import numpy as np
-import pandas as pd
-import config
-from types import Junction
+import tflux.pipeline.config as config
+from types import Junction, Grid
+from scipy.ndimage import generic_filter
 
-# Load .obj into DataFrame of vertex coordinate data.
-def load_obj_vertices(filename):
+
+# Gridding
+def grid_xt(junc: Junction):
     '''
-
-    Parameters
-    ----------
-    filename : str
-        Desired .obj file.
-
-    Returns
-    -------
-    vertices_array_tyx : numpy.ndarray
-        Vertices array with shape (total vertices, 3)
-
-    '''
-    vertices = []
-    with open(filename, 'r') as obj_file:
-        for line in obj_file:
-            if line.startswith('v '):
-                vertices.append(line.strip()[1:].split())
     
-    df_xyz = pd.DataFrame(vertices, dtype='f4', columns=["x", "y", "z"][:len(vertices[0])])
-    vertices_array_tyx = np.array(df_xyz.rename(columns={"x": "t", "z": "x"}))
-    return vertices_array_tyx
-
-
-def slice_vertices(vertices):
     '''
-    Parameters
-    ----------
-    vertices : numpy.ndarray
-        Vertices array with shape (total vertices, 3)
-
-    Returns
-    -------
-    top_half : numpy.ndarray
-        All vertices above the mean y.
-    bottom_half : numpy.ndarray
-        All vertices below the mean y.
-
-    '''
-    mean_y = vertices[:, 1].mean()
-    # std_y = vertices[:, 1].std()
-    top_half = vertices[vertices[:, 1] > mean_y]
-    bottom_half = vertices[vertices[:, 1] <= mean_y]
-    return top_half, bottom_half
-
-
-def centralize_vertices(vertices):
-    '''Centralize the vertices in the xy-plane'''
-    if vertices[:, 1:].size > 1: 
-        yx_center = vertices[:, 1:].mean(axis=0)  # Compute the mean of y and x
-        centralized_vertices = vertices.copy()
-        centralized_vertices[:, 1:] -= yx_center  # Shift y and x to center them
-        return centralized_vertices
+    vertices = junc.vertices
+    is_top = junc.is_top
+    
+    if is_top:
+        t, y, x = vertices[:, 0], vertices[:, 1], vertices[:, 2]
     else:
-        raise ValueError("Invalid vertices.")
+        t, y, x = vertices[:, 0], vertices[:, 1] * -1, vertices[:, 2]
+    
+    t_range = max(vertices[:, 0]) - min(vertices[:, 0])
+    x_range = max(vertices[:, 2]) - min(vertices[:, 2])
+    
+    # Dynamnically assign a grid size based on the cell length and sampling duration
+    grid_size_x = int(x_range / config.dx) # x_range: 40 to 60 um, 200 to 300 pixel, dx = 0.205 um/pixel
+    grid_size_t = int(t_range / config.dt)
+    
+    # Construct bins and grids
+    x_bins = np.linspace(min(x), max(x), grid_size_x)
+    t_bins = np.linspace(min(t), max(t), grid_size_t)
+    bin_grid = np.full((grid_size_x, grid_size_t), fill_value=np.nan)
+    count_grid = np.zeros_like(bin_grid, dtype=int)
+    
+    # Assign each vertex to an x-index and a t-index
+    x_indices = np.digitize(x, x_bins, right=True)
+    t_indices = np.digitize(t, t_bins, right=True)
+
+    # Iterate over vertices by index, populate grids
+    for xi, ti, yi in zip(x_indices, t_indices, y):
+        if 0 <= xi < bin_grid.shape[0] and 0 <= ti < bin_grid.shape[1]:
+            count_grid[xi, ti] += 1
+            if np.isnan(bin_grid[xi, ti]):
+                bin_grid[xi, ti] = yi
+            else:
+                bin_grid[xi, ti] += yi
+
+    # Take the mean of each grid based on the counts
+    np.divide(bin_grid, count_grid, out=bin_grid, where=~np.isnan(bin_grid))
+    
+    # Track the number of zeroes in a grid.
+    percent_zero = (np.count_nonzero(count_grid == 0)) * 100 / (grid_size_x * grid_size_t)  
+    
+    print(f"    Percent Zeros: { (np.count_nonzero(count_grid == 0)) * 100/ (grid_size_x * grid_size_t):.2f}%")
+    # print(f"    Percent One: { (np.count_nonzero(count_grid == 1)) * 100/ (grid_size_x * grid_size_t):.2f}%")
+    # print(f"    Percent Two: { (np.count_nonzero(count_grid == 2)) * 100/ (grid_size_x * grid_size_t):.2f}%")
+    # print(f"    Percent Three+: { (np.count_nonzero(count_grid >= 3)) * 100/ (grid_size_x * grid_size_t):.2f}%")
+    
+    zero_padded_grid = np.nan_to_num(bin_grid)
+    
+    grid = Grid(x=x_bins, y=t_bins, z=zero_padded_grid, cts=count_grid, grid_type='default', percent_zero=percent_zero)
+    junc.grid = grid
+    
+    return junc
 
 
-def find_best_orientation(vertices):
+def interpolate_zeros(grid: Grid):
     '''
-    Parameters
-    ----------
-    vertices : numpy.ndarray
-        Vertices array with shape (total vertices, 3)
-        Columns are in t, y, x order.
 
-    Returns
-    -------
-    best_angle : float,
-        Rotation angle around t-axis that minimizes the total y range.
-    best_rotated_vertices : numpy.ndarray,
-        Optimally rotated vertices array with shape (total vertices, 3)
+    '''
+    
+    z = grid.z
+    cts = grid.cts
+    
+    # Define a filter to count non-zero neighbors
+    def count_non_zero_neighbors(values):
+        non_zero_mask = values != 0
+        non_zero_neighbors_count = np.sum(non_zero_mask)
+        return non_zero_neighbors_count
+
+    # Apply the filter to count non-zero neighbors
+    non_zero_neighbors = generic_filter(z, count_non_zero_neighbors, size=config.WINDOW_SIZE, mode='constant', cval=0)
+    majority_threshold = (config.WINDOW_SIZE ** 2) * config.MAJORITY_PERCENT
+    
+    # Identify sparse zeros: zero cells with many non-zero neighbors and sufficient counts
+    sparse_zero_mask = (non_zero_neighbors >= majority_threshold) & (cts < config.SUFFICIENT_COUNT)
+
+    if config.WINDOW_SIZE % 2 == 0:
+        print("Window size is even, adding 1 to make it odd for generic filter.")
+        config.WINDOW_SIZE += 1 
         
-    '''
+    # Interpolate sparse zeros using averaging of non-zero neighbors
+    def neighbor_mean(values):
+        if np.count_nonzero(values) <= 1:
+            return 0
+        non_zero_mask = values != 0
+        neighbor_average = np.mean(values[non_zero_mask])
+        return neighbor_average
+
+    interpolated_grid = z.copy()
+    interpolated_grid[sparse_zero_mask] = generic_filter(z, neighbor_mean, size=config.WINDOW_SIZE, mode='constant', cval=0)[sparse_zero_mask]
+    cts[sparse_zero_mask] += 1
+    interpolated_grid_long = interpolated_grid.astype(np.float64) 
     
+    grid.z = interpolated_grid_long
+    grid.cts = cts
     
-    def rotate_vertices(vertices, angle_degrees):
-        '''Rotates the vertices around the t-axis by the given angle.'''
-        angle_radians = np.radians(angle_degrees)
-        rotation_matrix = np.array([
-            [1, 0, 0],  # t-axis remains unchanged
-            [0, np.cos(angle_radians), -np.sin(angle_radians)],  # y and x rotated
-            [0, np.sin(angle_radians), np.cos(angle_radians)]
-        ])
-        return vertices @ rotation_matrix.T
-
-    centralized_vertices = centralize_vertices(vertices)
-
-    best_angle = None
-    min_y_range = float('inf')
-    best_rotated_vertices = None
-
-    # Iterate over angles from 0 to 360 degrees in 1-degree steps
-    for angle in range(0, 360, 1):
-        rotated = rotate_vertices(centralized_vertices, angle)
-        y_range = rotated[:, 1].max() - rotated[:, 1].min()  # Compute the range of y
-
-        if y_range < min_y_range:
-            min_y_range = y_range
-            best_angle = angle
-            best_rotated_vertices = rotated
-
-    return best_angle, best_rotated_vertices
+    # print(f"Interpolated grid with a sufficient count threshold of {sufficient_count}.")
+    return grid
 
 
-# Transforms .obj into halves
-def prepare_obj(file):
-    '''
-
-    '''
-    vertices = load_obj_vertices(file)
-        
-    best_angle, best_vertices = find_best_orientation(vertices)
-        
-    best_vertices[:, 0] *= config.dt # pixels to seconds
-    best_vertices[:, 1:] *= config.dx # pixels to meters
-
-    top_half, bottom_half = slice_vertices(best_vertices)
-    # top_half_centralized = centralize_vertices(top_half) # Introduces discontinuity
-    # bottom_half_centralized = centralize_vertices(bottom_half)
+def trim_grid(grid):
+    x = grid.x
+    z = grid.z
     
-    top_junc = Junction(vertices=top_half, is_top=True, filename=file)
-    bot_junc = Junction(vertices=bottom_half, is_top=False, filename=file)
+    index_trim = config.CROP_PERCENT * 0.01
     
-    return top_junc, bot_junc
+    left = int(x.size * index_trim)
+    right = int(x.size - left)
+    grid.z = z[left:right]
+    
+    return grid
