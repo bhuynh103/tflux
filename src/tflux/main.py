@@ -13,7 +13,7 @@ from tflux.pipeline import config, run
 def main():
     sample = None
     if config.process_sample_directory:
-        sample = run.run_pipeline(directory_path=config.DATA_DIR)
+        sample = run.run_pipeline(data_dir_path=config.DATA_DIR_PATH)   # Save slope data to metrics.csv
     
     return sample # N surfaces
 

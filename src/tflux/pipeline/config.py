@@ -5,7 +5,7 @@ Created on Sun Jul 20 18:17:16 2025
 @author: bhuyn
 """
 # Constants
-DATA_DIR = 'data/raw/temp/WT'
+DATA_DIR_PATH = 'data/raw/temp/WT'
 PAIR_DIRECTORY = "/Users/bhuyn/Desktop/TFlux/figure-directories-paired"
 
 CROP_PERCENT = 5
@@ -28,8 +28,8 @@ cmap2 = 'spring'
 
 # Settings
 process_sample_directory = True
-find_average_metrics = True
-include_visualizations = True
+find_average_slopes = True
+include_junc_summary = False
 
 process_batch_directory = False
 include_figures = True

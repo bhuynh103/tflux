@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 # Load .obj into DataFrame of vertex coordinate data.
 def load_obj_vertices(filename):
     '''

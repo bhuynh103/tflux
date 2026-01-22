@@ -11,8 +11,8 @@ class Sample:
         self.juncs.append(junc)
         return self
     
-    
-    def find_average(self, attr):
+
+    def list_metric(self, attr):
         match attr:
             case 'a':
                 attr_list = [junc.mesh.a for junc in self.juncs]
@@ -22,15 +22,19 @@ class Sample:
                 attr_list = [junc.linreg_q.m for junc in self.juncs]
             case 'w_m':
                 attr_list = [junc.linreg_w.m for junc in self.juncs]
-        
+        return attr_list
+
+    
+    def find_average_metric(self, attr):
+        attr_list = self.list_metric(attr)
         mean = np.mean(attr_list)
         std = np.std(attr_list)
         return mean, std
 
 
 class Junction:
-    def __init__(self, vertices, is_top, filename):
-        self.filename = filename
+    def __init__(self, vertices, is_top):
+        self.source_file = None
         self.vertices = vertices
         self.is_top = is_top
         self.grid: Grid = None

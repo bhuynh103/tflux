@@ -5,25 +5,68 @@ Created on Sun Jul 20 18:44:22 2025
 @author: bhuyn
 """
 
-import pandas as pd
-import numpy as np
-import os
-import tflux.pipeline.config as config
-import preprocessing
-from scipy.fft import fft2, fftshift
-from scipy.stats import linregress
-from tflux.dtypes import Sample, Junction, Mesh, Grid, LinReg            
+import csv
+from pathlib import Path
+import tflux.pipeline.config as config       
 
 
 # Stats
 
-def calc_sample_metrics(sample, metrics: list[str]):
+def average_sample_metrics(sample, metrics: list[str], output_dir=None):
+    """
+    Calculate and save average metrics to a text file.
+    """
     N = len(sample.juncs)
     if N >= 1:
-        for metric in metrics:
-            mean, std = sample.find_average(metric)
-            print(f'{metric} = {mean} +/- {std}')
+        # Prepare output file
+        if output_dir is not None:
+            output_dir = Path(output_dir)
+            output_file = output_dir / "metrics.txt"
+        else:
+            output_file = "metrics.txt"
+        
+        # Calculate metrics and write to file
+        with open(output_file, 'w') as f:
+            f.write(f"Sample Metrics (N = {N} junctions)\n")
+            f.write("=" * 50 + "\n\n")
+            
+            for metric in metrics:
+                mean, std = sample.find_average_metric(metric)
+                line = f'{metric} = {mean} +/- {std}\n'
+                print(line.rstrip())  # Print to console
+                f.write(line)  # Write to file
+        
+        print(f"\nMetrics saved to: {output_file}")
+
+
+def save_metrics_to_csv(sample, output_dir=None, filename="metrics.csv"):
+    """
+    Save all junction metrics to a CSV file.
+    """
+    if len(sample.juncs) == 0:
+        print("No junctions to save.")
+        return
     
+    # Prepare output file path
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_file = output_dir / filename
+    else:
+        output_file = filename
+    
+    # Write to CSV
+    with open(output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow(['grad_q', 'grad_w', 'linreg_q', 'linreg_w', 'source'])
+        
+        # Write data rows
+        for junc in sample.juncs:
+            writer.writerow([junc.mesh.a, junc.mesh.b, junc.linreg_q.m, junc.linreg_w.m, junc.source_file])
+    
+    print(f"Saved {len(sample.juncs)} junctions to: {output_file}")
+
 
 def tension_interpolation(interp):
     return (config.boltzmann_constant * config.room_temp) / ((10 ** (interp + 4.5)))

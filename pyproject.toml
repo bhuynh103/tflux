@@ -5,10 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tflux"
 version = "0.1.0"
-requires-python = ">=3.9"
+description = "tflux"
+readme = "README.md"
+requires-python = ">=3.11"
+
 dependencies = [
   "numpy",
   "scipy",
+  "pandas",
+  "matplotlib",
+  "seaborn",
 ]
 
 [tool.setuptools]
@@ -16,3 +22,12 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.scripts]
+tflux = "tflux.main:main"
+
+[project.optional-dependencies]
+tracking = ["mlflow", "dagshub"]
+data = ["dvc", "dvc-s3"]
+all = ["mlflow", "dagshub", "dvc", "dvc-s3"]
+
