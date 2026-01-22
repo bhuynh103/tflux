@@ -5,7 +5,7 @@ Created on Sun Jul 20 18:17:16 2025
 @author: bhuyn
 """
 # Constants
-SINGLE_DIRECTORY = "/Users/bhuyn/Desktop/TFlux/WT-selected"
+DATA_DIR = 'data/raw/temp/WT'
 PAIR_DIRECTORY = "/Users/bhuyn/Desktop/TFlux/figure-directories-paired"
 
 CROP_PERCENT = 5

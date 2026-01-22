@@ -12,7 +12,7 @@ import tflux.pipeline.config as config
 import preprocessing
 from scipy.fft import fft2, fftshift
 from scipy.stats import linregress
-from types import Sample, Junction, Mesh, Grid, LinReg            
+from tflux.dtypes import Sample, Junction, Mesh, Grid, LinReg            
 
 
 # Stats

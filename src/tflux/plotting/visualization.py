@@ -8,7 +8,7 @@ Created on Sun Jul 20 18:51:25 2025
 import numpy as np
 import matplotlib.pyplot as plt
 import tflux.pipeline.config as config
-from types import Grid
+from tflux.dtypes import Grid
 
 ### Visualization ###
 

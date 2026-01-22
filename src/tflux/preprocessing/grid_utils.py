@@ -7,7 +7,7 @@ Created on Sun Jul 20 18:20:51 2025
 
 import numpy as np
 import tflux.pipeline.config as config
-from types import Junction, Grid
+from tflux.dtypes import Junction, Grid
 from scipy.ndimage import generic_filter
 
 
