@@ -44,10 +44,10 @@ class Junction:
 
 
 class Grid:
-    def __init__(self, x, y, z, cts, grid_type, percent_zero):
-        self.x = x # t
-        self.y = y # x
-        self.z = z
+    def __init__(self, x, t, z, cts, grid_type, percent_zero):
+        self.x = x # x bins
+        self.t = t # t bins
+        self.z = z # shape (len(x_bins), len(t_bins))
         self.q = None
         self.w = None
         self.z_tilde = None
@@ -62,9 +62,9 @@ class Grid:
     
     def fourier_transform(self, shift_fft=False, square_fft=False):
         if self.grid_type == 'default':
-            self.w = np.fft.fftfreq(n=len(self.x), d=config.dt)
+            self.w = np.fft.fftfreq(n=len(self.t), d=config.dt)
             self.w = np.fft.fftshift(self.w)
-            self.q = np.fft.fftfreq(n=len(self.y), d=config.dx)
+            self.q = np.fft.fftfreq(n=len(self.x), d=config.dx)
             self.q = np.fft.fftshift(self.q)
             self.z_tilde = np.fft.fft2(self.z)
             if shift_fft:
@@ -78,12 +78,12 @@ class Grid:
             return self
     
     
-    def get_grid_range(self, dim): # TODO: 
+    def get_grid_range(self, dim): 
         match dim:
             case 't':
-                dim_range = self.x.max() - self.x.min()
+                dim_range = self.t.max() - self.t.min()
             case 'x': 
-                dim_range = self.y.max() - self.y.min()
+                dim_range = self.x.max() - self.x.min()
         return dim_range
     
     
@@ -98,10 +98,12 @@ class Grid:
         mask = self.get_mask(dim)
         if dim == 'q':
             x = self.q[mask]
-            y = self.z_tilde.mean(axis=0)[mask] # Average over omega
+            y = self.z_tilde.mean(axis=1)[mask] # Averages over omega
+            # print(f'q: {len(x)}, z: {len(y)}')
         if dim == 'w':
             x = self.w[mask]
-            y = self.z_tilde.mean(axis=1)[mask] # Average over q
+            y = self.z_tilde.mean(axis=0)[mask] # Averages over q
+            # print(f'w: {len(x)}, z: {len(y)}')
         
         x, y = self.log_transform(x, y)
         
@@ -109,20 +111,20 @@ class Grid:
         return linreg
     
     
-    def get_mask(self, x):
+    def get_mask(self, dim):
         if self.grid_type == 'fourier':
-            if x == 'q':
+            if dim == 'q':
                 mask = (self.q > 0) & (self.q < 10 ** config.TANGENT_CUTOFF)
-            if x == 'w':
+            if dim == 'w':
                 mask = (self.w > 0) & (self.w < 10 ** config.TANGENT_CUTOFF_TIME)
         return mask
 
 
 
 class Mesh():
-    def __init__(self, x, y, z, log_scale):
-        self.x: np.ndarray = x # q
-        self.y: np.ndarray = y # w
+    def __init__(self, q, w, z, log_scale):
+        self.q: np.ndarray = q # q
+        self.w: np.ndarray = w # w
         self.z: np.ndarray = z # u^2
         self.masked: bool = False
         self.denoised: bool = False
@@ -135,8 +137,8 @@ class Mesh():
         
     def log_transform(self):
         if not self.log_scale:
-            self.x = np.log10(self.x)
-            self.y = np.log10(self.y)
+            self.q = np.log10(self.q)
+            self.w = np.log10(self.w)
             self.z = np.log10(self.z)
             self.log_scale = True
             
@@ -145,8 +147,8 @@ class Mesh():
         
     def exp_transform(self):
         if self.log_scale:
-            self.x = 10 ** self.x
-            self.y = 10 ** self.y
+            self.q = 10 ** self.q
+            self.w = 10 ** self.w
             self.z = 10 ** self.z
             self.log_scale = False
         
@@ -155,23 +157,23 @@ class Mesh():
     
     def get_residuals(self):
         if self.log_scale:
-            self.z_residuals = self.z - self.a * self.x - self.b * self.y - self.c
+            self.z_residuals = self.z - self.a * self.q - self.b * self.w - self.c
             return self.z_residuals
     
     
     def apply_masks(self, denoise=False):
         # Only positive frequencies and finite log amplitude
-        positive_mask = ((self.x > 0) & (self.y > 0))
-        finite_mask = np.isfinite(self.z)  # May bug
+        positive_mask = ((self.q > 0) & (self.w > 0))
+        finite_mask = np.isfinite(self.z)
         fit_mask = positive_mask & finite_mask
         if denoise:
-            noise_mask = ((self.x < 10 ** config.TANGENT_CUTOFF) & (self.y < 10 ** config.TANGENT_CUTOFF_TIME))
+            noise_mask = ((self.q < 10 ** config.TANGENT_CUTOFF) & (self.w < 10 ** config.TANGENT_CUTOFF_TIME))
             fit_mask = fit_mask & noise_mask
             self.denoised = True
         
         # Prepare the data we actually plot, meshes
-        self.x = self.x[fit_mask].ravel(order='F')
-        self.y = self.y[fit_mask].ravel(order='F')
+        self.q = self.q[fit_mask].ravel(order='F')
+        self.w = self.w[fit_mask].ravel(order='F')
         self.z = self.z[fit_mask].ravel()
         self.masked = True
         
@@ -182,9 +184,9 @@ class Mesh():
         if not self.log_scale:
             self.log_transform()
         if self.masked and self.denoised:
-            A = np.c_[self.x, self.y, np.ones_like(self.x)]
+            A = np.c_[self.q, self.w, np.ones_like(self.q)]
             coeffs, _, _, _ = np.linalg.lstsq(A, self.z, rcond=None)
-            self.a, self.b, self.c = coeffs   # z ~ a*x + b*y + c
+            self.a, self.b, self.c = coeffs   # z ~ a*q + b*w + c
             
         return self
     

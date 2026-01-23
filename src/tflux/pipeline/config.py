@@ -5,7 +5,8 @@ Created on Sun Jul 20 18:17:16 2025
 @author: bhuyn
 """
 # Constants
-DATA_DIR_PATH = 'data/raw/all-data/LatB/WTvsLabB_0.5uMLatB_experimental'
+DATA_DIR_PATH = 'data/raw/all-data/LatB/experimental'
+CSV_PATH = 'data/processed_trimmed/LatB/experimental/metrics.csv'
 PAIR_DIRECTORY = "/Users/bhuyn/Desktop/TFlux/figure-directories-paired"
 
 CROP_PERCENT = 5
@@ -30,6 +31,4 @@ cmap2 = 'spring'
 process_sample_directory = True
 find_average_slopes = True
 include_junc_summary = False
-
-process_batch_directory = False
-include_figures = True
+make_histograms = False

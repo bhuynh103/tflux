@@ -28,8 +28,6 @@ def prepare_obj(file):
     best_vertices[:, 1:] *= config.dx # pixels to meters
 
     top_half, bottom_half = vertices_utils.slice_vertices(best_vertices)
-    # top_half_centralized = centralize_vertices(top_half) # Introduces discontinuity
-    # bottom_half_centralized = centralize_vertices(bottom_half)
     
     top_junc = Junction(vertices=top_half, is_top=True)
     bot_junc = Junction(vertices=bottom_half, is_top=False)
@@ -42,9 +40,13 @@ def process_surface(junc: Junction):
     # results = {}
     
     junc = grid_utils.grid_xt(junc)  # Construct the Grid object
+    # print(f'Grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
     junc.grid = grid_utils.interpolate_zeros(junc.grid)
-    # junc.grid = grid_utils.trim_grid(junc.grid)
+    junc.grid = grid_utils.trim_grid(junc.grid)
+    # print(f'Trimmed x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
+
     junc.grid = junc.grid.fourier_transform(shift_fft=True, square_fft=True) # Method
+    # print(f'Trimmed fft q: {len(junc.grid.q)}, w: {len(junc.grid.w)}')
     junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.grid)
     
     junc.mesh = fft_to_mesh(junc.grid)  # Contruct the Mesh object
@@ -55,13 +57,12 @@ def process_surface(junc: Junction):
     return junc
 
 
-# Converting Grid to Mesh
+# Converting Grid to Mesh, grid shape (288, 598)
 def fft_to_mesh(grid: Grid):
     if grid.grid_type == 'fourier':        
         z2_mesh = grid.z_tilde
-        z2_mesh_transpose = z2_mesh.T
         q_mesh, w_mesh = np.meshgrid(grid.q, grid.w, indexing='ij')
-        mesh = Mesh(q_mesh, w_mesh, z2_mesh_transpose, False)
+        mesh = Mesh(q_mesh, w_mesh, z2_mesh, False)
         return mesh
 
 

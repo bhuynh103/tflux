@@ -29,5 +29,6 @@ tflux = "tflux.main:main"
 [project.optional-dependencies]
 tracking = ["mlflow", "dagshub"]
 data = ["dvc", "dvc-s3"]
-all = ["mlflow", "dagshub", "dvc", "dvc-s3"]
+dev = ["spyder-kernels==3.1"]
+all = ["mlflow", "dagshub", "dvc", "dvc-s3", "spyder-kernels==3.1"]
 

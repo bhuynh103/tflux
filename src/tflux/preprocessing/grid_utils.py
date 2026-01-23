@@ -13,9 +13,6 @@ from scipy.ndimage import generic_filter
 
 # Gridding
 def grid_xt(junc: Junction):
-    '''
-    
-    '''
     vertices = junc.vertices
     is_top = junc.is_top
     
@@ -24,8 +21,8 @@ def grid_xt(junc: Junction):
     else:
         t, y, x = vertices[:, 0], vertices[:, 1] * -1, vertices[:, 2]
     
-    t_range = max(vertices[:, 0]) - min(vertices[:, 0])
     x_range = max(vertices[:, 2]) - min(vertices[:, 2])
+    t_range = max(vertices[:, 0]) - min(vertices[:, 0])
     
     # Dynamnically assign a grid size based on the cell length and sampling duration
     grid_size_x = int(x_range / config.dx) # x_range: 40 to 60 um, 200 to 300 pixel, dx = 0.205 um/pixel
@@ -56,14 +53,14 @@ def grid_xt(junc: Junction):
     # Track the number of zeroes in a grid.
     percent_zero = (np.count_nonzero(count_grid == 0)) * 100 / (grid_size_x * grid_size_t)  
     
-    print(f"    Percent Zeros: { (np.count_nonzero(count_grid == 0)) * 100/ (grid_size_x * grid_size_t):.2f}%")
+    # print(f"    Percent Zeros: { (np.count_nonzero(count_grid == 0)) * 100/ (grid_size_x * grid_size_t):.2f}%")
     # print(f"    Percent One: { (np.count_nonzero(count_grid == 1)) * 100/ (grid_size_x * grid_size_t):.2f}%")
     # print(f"    Percent Two: { (np.count_nonzero(count_grid == 2)) * 100/ (grid_size_x * grid_size_t):.2f}%")
     # print(f"    Percent Three+: { (np.count_nonzero(count_grid >= 3)) * 100/ (grid_size_x * grid_size_t):.2f}%")
     
     zero_padded_grid = np.nan_to_num(bin_grid)
     
-    grid = Grid(x=x_bins, y=t_bins, z=zero_padded_grid, cts=count_grid, grid_type='default', percent_zero=percent_zero)
+    grid = Grid(x=x_bins, t=t_bins, z=zero_padded_grid, cts=count_grid, grid_type='default', percent_zero=percent_zero)
     junc.grid = grid
     
     return junc
@@ -119,9 +116,13 @@ def trim_grid(grid):
     z = grid.z
     
     index_trim = config.CROP_PERCENT * 0.01
-    
+
+    # print(f"Pre trimming Length x: {len(grid.x)}")
+    # print(f"Shape z: {grid.z.shape}")
+
     left = int(x.size * index_trim)
     right = int(x.size - left)
+    grid.x = x[left:right]
     grid.z = z[left:right]
     
     return grid
