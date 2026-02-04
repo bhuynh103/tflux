@@ -10,20 +10,20 @@ import tflux.io.obj_reader as obj_reader
 import tflux.analysis.metrics as metrics_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary
 import tflux.plotting.figures2 as fig2
-from tflux.dtypes import Sample, Junction, Grid, Mesh, LinReg
+from tflux.dtypes import Sample, Junction, GridFFT, Grid, Mesh, LinReg
 
 
+# TODO: figure out what this was for
 def prepare_io():
     return
 
 
 # Preprocessing .obj into top and bottom Junctions
-def prepare_obj(file):
+def prepare_obj(file: Path) -> tuple[Junction, Junction]:
 
-    vertices = obj_reader.load_obj_vertices(file)
+    vertices: np.ndarray = obj_reader.load_obj_vertices(file)
         
-    best_angle, best_vertices = vertices_utils.find_best_orientation(vertices)
-        
+    best_vertices = vertices_utils.find_best_orientation(vertices)
     best_vertices[:, 0] *= config.dt # pixels to seconds
     best_vertices[:, 1:] *= config.dx # pixels to meters
 
@@ -36,20 +36,19 @@ def prepare_obj(file):
 
 
 # Preprocessing Junction into Grid and Mesh
-def process_surface(junc: Junction):
-    # results = {}
+def process_surface(junc: Junction) -> Junction:
     
-    junc = grid_utils.grid_xt(junc)  # Construct the Grid object
+    junc.grid = grid_utils.grid_xt(junc)  # Constructs the Grid object
     # print(f'Grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
     junc.grid = grid_utils.interpolate_zeros(junc.grid)
-    junc.grid = grid_utils.trim_grid(junc.grid)
+    junc.grid = grid_utils.trim_grid(junc.grid, crop_percent=config.CROP_PERCENT)
     # print(f'Trimmed x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
 
-    junc.grid = junc.grid.fourier_transform(shift_fft=True, square_fft=True) # Method
+    junc.grid_fft = junc.grid.fourier_transform(shift_fft=True, square_fft=True)
     # print(f'Trimmed fft q: {len(junc.grid.q)}, w: {len(junc.grid.w)}')
-    junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.grid)
+    junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.grid_fft)
     
-    junc.mesh = fft_to_mesh(junc.grid)  # Contruct the Mesh object
+    junc.mesh = fft_to_mesh(junc.grid_fft)  # Contruct the Mesh object
 
     junc.mesh = junc.mesh.apply_masks(denoise=True)  # Slice above positive frequency and below noise floor
     junc.mesh = junc.mesh.find_loglog_gradient()
@@ -58,20 +57,18 @@ def process_surface(junc: Junction):
 
 
 # Converting Grid to Mesh, grid shape (288, 598)
-def fft_to_mesh(grid: Grid):
-    if grid.grid_type == 'fourier':        
-        z2_mesh = grid.z_tilde
-        q_mesh, w_mesh = np.meshgrid(grid.q, grid.w, indexing='ij')
-        mesh = Mesh(q_mesh, w_mesh, z2_mesh, False)
-        return mesh
+def fft_to_mesh(grid_fft: GridFFT) -> Mesh:        
+    z2_mesh = grid_fft.z_tilde
+    q_mesh, w_mesh = np.meshgrid(grid_fft.q, grid_fft.w, indexing='ij')
+    mesh = Mesh(q_mesh, w_mesh, z2_mesh, log_scale=False)
+    return mesh
 
 
 # Converting Grid to LinReg
-def linreg_on_fft(grid: Grid):
-    if grid.grid_type == 'fourier':
-        linreg_q = grid.grid_to_linreg_over('q')
-        linreg_w = grid.grid_to_linreg_over('w')
-        return linreg_q, linreg_w
+def linreg_on_fft(grid_fft: GridFFT) -> tuple[LinReg, LinReg]:
+    linreg_q = grid_fft.fft_to_linreg_over('q')
+    linreg_w = grid_fft.fft_to_linreg_over('w')
+    return linreg_q, linreg_w
 
 
 ### Batch Processing via Directory ###
@@ -90,7 +87,7 @@ def process_files(data_dir_path=None):
         file_basename = file_path.name
         print(f"\nProcessing file: {file_basename}")
 
-        top_junc, bot_junc = prepare_obj(str(file_path))  # if prepare_obj expects a string path
+        top_junc, bot_junc = prepare_obj(str(file_path))  # prepare_obj expects a string path
 
         top_junc_processed = process_surface(top_junc)
         bot_junc_processed = process_surface(bot_junc)
@@ -105,7 +102,7 @@ def process_files(data_dir_path=None):
 
 
 ### PIPELINE START ###
-def run_pipeline(data_dir_path=None):
+def run_pipeline(data_dir_path: Path = None) -> None:
 
     if data_dir_path is None:
         data_dir_path = paths.get_data_dir()

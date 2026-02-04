@@ -4,22 +4,22 @@ Created on Sun Jul 20 18:17:16 2025
 
 @author: bhuyn
 """
-# Constants
-DATA_DIR_PATH = 'data/raw/all-data/LatB/experimental'
-CSV_PATH = 'data/processed_trimmed/LatB/experimental/metrics.csv'
-PAIR_DIRECTORY = "/Users/bhuyn/Desktop/TFlux/figure-directories-paired"
+from pathlib import Path
 
-CROP_PERCENT = 5
-WINDOW_SIZE = 7
-MAJORITY_PERCENT = 0.4
-SUFFICIENT_COUNT = 1
-MIN_VALUE = 0
+DATA_DIR_PATH = Path('data/raw/all-data/LatB/experimental')
+CSV_PATH = Path('data/processed_trimmed/LatB/experimental/metrics.csv')
 
-dx = 0.205 * (10 ** -6)  # meter per x pixel
-dt = 1.0  # seconds per t pixel
+CROP_PERCENT: float = 0.1  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
+WINDOW_SIZE: int = 7  # must be odd, if even adds 1
+MAJORITY_PERCENT: float = 0.4
+SUFFICIENT_COUNT: int = 1  # must be 1 ?
+MIN_VALUE = 0  # floor of junction z-tilde ?
 
-TANGENT_CUTOFF = 6
-TANGENT_CUTOFF_TIME = -1
+dx: float = 0.205 * (10 ** -6)  # meter per x pixel
+dt: float = 1.0  # seconds per t pixel
+
+TANGENT_CUTOFF: float = 6  # exponent of cutoff from 10**4ish to 10**7 m^-1
+TANGENT_CUTOFF_TIME = -1  # same for time
 
 boltzmann_constant = 1.36 * (10 ** -23) # Joules per Kelvin
 room_temp = 298 # Kelvin

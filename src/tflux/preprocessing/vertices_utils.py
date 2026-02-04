@@ -1,7 +1,7 @@
 import numpy as np
 
 # Vertices
-def slice_vertices(vertices):
+def slice_vertices(vertices) -> tuple[np.ndarray, np.ndarray]:
     '''
     Parameters
     ----------
@@ -44,15 +44,13 @@ def find_best_orientation(vertices):
 
     Returns
     -------
-    best_angle : float,
-        Rotation angle around t-axis that minimizes the total y range.
     best_rotated_vertices : numpy.ndarray,
         Optimally rotated vertices array with shape (total vertices, 3)
         
     '''
     
     
-    def rotate_vertices(vertices, angle_degrees):
+    def rotate_vertices(vertices, angle_degrees) -> np.ndarray:
         '''Rotates the vertices around the t-axis by the given angle.'''
         angle_radians = np.radians(angle_degrees)
         rotation_matrix = np.array([
@@ -78,4 +76,4 @@ def find_best_orientation(vertices):
             best_angle = angle
             best_rotated_vertices = rotated
 
-    return best_angle, best_rotated_vertices
+    return best_rotated_vertices

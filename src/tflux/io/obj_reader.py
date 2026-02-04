@@ -1,24 +1,25 @@
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 
 # Load .obj into DataFrame of vertex coordinate data.
-def load_obj_vertices(filename):
+def load_obj_vertices(file_path: Path) -> np.ndarray:
     '''
 
     Parameters
     ----------
-    filename : str
+    filename : Path
         Desired .obj file.
 
     Returns
     -------
-    vertices_array_tyx : numpy.ndarray
+    vertices_array_tyx : np.ndarray
         Vertices array with shape (total vertices, 3)
 
     '''
     vertices = []
-    with open(filename, 'r') as obj_file:
+    with open(file_path, 'r') as obj_file:
         for line in obj_file:
             if line.startswith('v '):
                 vertices.append(line.strip()[1:].split())
