@@ -2,7 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-def plot_gradient_histograms(csv_path, bins=30):
+def plot_gradient_histograms(csv_path, bins=30) -> plt.Figure:
     """
     Plot 2x2 histograms for grad_q, grad_w, linreg_q, linreg_w from a CSV.
 
@@ -34,4 +34,4 @@ def plot_gradient_histograms(csv_path, bins=30):
         ax.set_xlabel(col)
         ax.set_ylabel("Count")
 
-    return fig, axes
+    return fig

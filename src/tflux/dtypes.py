@@ -11,7 +11,7 @@ class Junction:
         self.vertices = vertices
         self.is_top = is_top
         self.grid: Grid | None = None
-        self.fft: Grid | None = None
+        self.fft: GridFFT | None = None
         self.mesh: Mesh | None = None
         self.linreg_q: LinReg | None = None
         self.linreg_w: LinReg | None = None
@@ -151,7 +151,7 @@ class Mesh:
 
 
 class GridFFT():
-    def __init__(self, q, w, z_tilde, shifted=False, squared=False, log_scale=False, mask_applied=False):
+    def __init__(self, q: np.ndarray, w: np.ndarray, z_tilde: np.ndarray, shifted=False, squared=False, log_scale=False, mask_applied=False):
         self.q = q
         self.w = w
         self.z_tilde = z_tilde

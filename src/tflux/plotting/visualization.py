@@ -8,7 +8,7 @@ Created on Sun Jul 20 18:51:25 2025
 import numpy as np
 import matplotlib.pyplot as plt
 import tflux.pipeline.config as config
-from tflux.dtypes import Grid
+from tflux.dtypes import Grid, Mesh
 
 ### Visualization ###
 
@@ -115,7 +115,7 @@ def plot_amplitude_distribution(grid, bins=50, cmap=config.cmap1, ax=None):
     return ax
 
 
-def plot_3d_fft(mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):
+def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):
     
     if ax is None:
         fig = plt.figure(figsize=(10,8))
@@ -125,12 +125,12 @@ def plot_3d_fft(mesh, log=False, log_residuals=False, include_best_fit=True, ax=
         ax = _ensure_ax_3d(ax, fig)
     
     if not log:
-        x = mesh.x
-        y = mesh.y
+        x = mesh.q
+        y = mesh.w
         z = mesh.z
     else:
-        x = mesh.log_transform().x
-        y = mesh.log_transform().y
+        x = mesh.log_transform().q
+        y = mesh.log_transform().w
         z = mesh.log_transform().z
         if log_residuals:
             z = mesh.log_transform().get_residuals()

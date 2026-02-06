@@ -26,7 +26,7 @@ def find_root() -> Path:
     return project_root
 
 
-def get_data_dir():
+def get_data_dir() -> Path:
 
     root_path: Path = find_root()
 
@@ -39,7 +39,7 @@ def get_data_dir():
     return data_dir
 
 
-def make_output_dir():
+def make_output_dir() -> Path:
 
     root_path: Path = find_root()
 
@@ -59,12 +59,13 @@ def make_output_dir():
         
         if not new_dir.exists():
             new_dir.mkdir(parents=True, exist_ok=True)
+            (new_dir / "junction_summaries").mkdir(parents=True, exist_ok=True)
             return new_dir
         
         run_number += 1
 
 
-def get_directories_in_path(path):
+def get_directories_in_path(path) -> list[Path]:
     """
     Returns a list of directory names within the specified path.
     """

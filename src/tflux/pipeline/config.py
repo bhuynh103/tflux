@@ -6,8 +6,7 @@ Created on Sun Jul 20 18:17:16 2025
 """
 from pathlib import Path
 
-DATA_DIR_PATH = Path('data/raw/all-data/LatB/experimental')
-CSV_PATH = Path('data/processed_trimmed/LatB/experimental/metrics.csv')
+DATA_DIR_PATH = Path('data/raw/temp/LatB/experimental') # Swap all-data and temp
 
 CROP_PERCENT: float = 0.1  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
 WINDOW_SIZE: int = 7  # must be odd, if even adds 1
@@ -28,7 +27,6 @@ cmap1 = 'viridis'
 cmap2 = 'spring'
 
 # Settings
-process_sample_directory = True
-find_average_slopes = True
-include_junc_summary = False
+print_average_slopes = True
+make_junc_summary = True
 make_histograms = False

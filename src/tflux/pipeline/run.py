@@ -7,9 +7,9 @@ import tflux.pipeline.config as config
 import tflux.preprocessing.grid_utils as grid_utils
 import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.io.obj_reader as obj_reader
-import tflux.analysis.metrics as metrics_analyzer
-from tflux.plotting.junction_summary import plot_junction_summary
-import tflux.plotting.figures2 as fig2
+import tflux.analysis.slope_analyzer as slope_analyzer
+from tflux.plotting.junction_summary import plot_junction_summary_3x3
+from tflux.plotting.sample_slope_hist import plot_gradient_histograms
 from tflux.dtypes import Sample, Junction, GridFFT, Grid, Mesh, LinReg
 
 
@@ -44,11 +44,11 @@ def process_surface(junc: Junction) -> Junction:
     junc.grid = grid_utils.trim_grid(junc.grid, crop_percent=config.CROP_PERCENT)
     # print(f'Trimmed x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
 
-    junc.grid_fft = junc.grid.fourier_transform(shift_fft=True, square_fft=True)
-    # print(f'Trimmed fft q: {len(junc.grid.q)}, w: {len(junc.grid.w)}')
-    junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.grid_fft)
+    junc.fft = junc.grid.fourier_transform(shift_fft=True, square_fft=True)
+    # print(f'Trimmed fft q: {len(junc.fft.q)}, w: {len(junc.fft.w)}')
+    junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.fft)
     
-    junc.mesh = fft_to_mesh(junc.grid_fft)  # Contruct the Mesh object
+    junc.mesh = fft_to_mesh(junc.fft)  # Contruct the Mesh object
 
     junc.mesh = junc.mesh.apply_masks(denoise=True)  # Slice above positive frequency and below noise floor
     junc.mesh = junc.mesh.find_loglog_gradient()
@@ -84,16 +84,15 @@ def process_files(data_dir_path=None):
         return None
 
     for file_path in obj_files:
-        file_basename = file_path.name
-        print(f"\nProcessing file: {file_basename}")
+        print(f"Processing file: {file_path.name}")
 
         top_junc, bot_junc = prepare_obj(str(file_path))  # prepare_obj expects a string path
 
         top_junc_processed = process_surface(top_junc)
         bot_junc_processed = process_surface(bot_junc)
 
-        top_junc_processed.source_file = file_basename
-        bot_junc_processed.source_file = file_basename
+        top_junc_processed.source_file = file_path
+        bot_junc_processed.source_file = file_path
 
         sample = sample.append_junction(top_junc_processed)
         sample = sample.append_junction(bot_junc_processed)
@@ -102,23 +101,38 @@ def process_files(data_dir_path=None):
 
 
 ### PIPELINE START ###
-def run_pipeline(data_dir_path: Path = None) -> None:
+def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None) -> None:
 
+    # Prepare IO directories (if needed)
     if data_dir_path is None:
         data_dir_path = paths.get_data_dir()
     
-    output_dir_path = paths.make_output_dir()
+    if output_dir_path is None:
+        output_dir_path = paths.make_output_dir() # creates junction_summaries subdirectory as well
 
+    # TODO: verify subdirectories exist, if not create them
+    # Assume output_dir has been created with subdirectory junction_summaries
+
+    junction_summary_dir = output_dir_path / "junction_summaries"
+
+    # Process files and extract slopes
     sample = process_files(data_dir_path)
 
-    metrics_analyzer.save_metrics_to_csv(sample, output_dir=output_dir_path)    # Data saved
+    slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)    # Data saved to slopes.csv in output_dir_path
 
-    if config.find_average_slopes:
-        metrics = ['a', 'b', 'q_m', 'w_m']
-        metrics_analyzer.average_sample_metrics(sample, metrics, output_dir=output_dir_path)
+    if config.print_average_slopes:
+        slope_analyzer.average_sample_slopes(sample, slopes=None, output_dir=output_dir_path)
     
-    if config.include_junc_summary:
+    if config.make_histograms:
+        csv_path = output_dir_path / "slopes.csv"
+        fig = plot_gradient_histograms(csv_path=csv_path)
+        fig.savefig(output_dir_path / 'slope_histograms.png')
+
+    if config.make_junc_summary:
         for junc in sample.juncs:
-            plot_junction_summary(junc=junc)
+            fig = plot_junction_summary_3x3(junc=junc)
+            png_name = f'{junc.source_file.stem}_{"top" if junc.is_top else "bottom"}_3x3summary.png'
+            fig.savefig(junction_summary_dir / f'{png_name}')
+            plt.close(fig)
             
     return

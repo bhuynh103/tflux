@@ -12,36 +12,39 @@ import tflux.pipeline.config as config
 
 # Stats
 
-def average_sample_metrics(sample, metrics: list[str], output_dir=None):
+def average_sample_slopes(sample, slopes: list[str], output_dir=None):
     """
-    Calculate and save average metrics to a text file.
+    Calculate and save average slopes to a text file.
     """
+    if slopes is None:
+        slopes = ['a', 'b', 'q_m', 'w_m']
+
     N = len(sample.juncs)
     if N >= 1:
         # Prepare output file
         if output_dir is not None:
             output_dir = Path(output_dir)
-            output_file = output_dir / "metrics.txt"
+            output_file = output_dir / "slopes.txt"
         else:
-            output_file = "metrics.txt"
+            output_file = "slopes.txt"
         
-        # Calculate metrics and write to file
+        # Calculate slopes and write to file
         with open(output_file, 'w') as f:
-            f.write(f"Sample Metrics (N = {N} junctions)\n")
+            f.write(f"Sample slopes (N = {N} junctions)\n")
             f.write("=" * 50 + "\n\n")
             
-            for metric in metrics:
+            for metric in slopes:
                 mean, std = sample.find_average_metric(metric)
                 line = f'{metric} = {mean} +/- {std}\n'
                 print(line.rstrip())  # Print to console
                 f.write(line)  # Write to file
         
-        print(f"\nMetrics saved to: {output_file}")
+        print(f"\nslopes saved to: {output_file}")
 
 
-def save_metrics_to_csv(sample, output_dir=None, filename="metrics.csv"):
+def save_slopes_to_csv(sample, output_dir=None, filename="slopes.csv"):
     """
-    Save all junction metrics to a CSV file.
+    Save all junction slopes to a CSV file.
     """
     if len(sample.juncs) == 0:
         print("No junctions to save.")
