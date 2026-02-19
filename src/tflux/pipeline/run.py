@@ -21,9 +21,10 @@ def prepare_io():
 # Preprocessing .obj into top and bottom Junctions
 def prepare_obj(file: Path) -> tuple[Junction, Junction]:
 
-    vertices: np.ndarray = obj_reader.load_obj_vertices(file)
+    vertices: np.ndarray = obj_reader.load_obj(file, element='vertices', relabel=True)
+    normals: np.ndarray = obj_reader.load_obj(file, element='normals', relabel=True)
         
-    best_vertices = vertices_utils.find_best_orientation(vertices)
+    best_vertices = vertices_utils.find_best_orientation(vertices, normals)
     best_vertices[:, 0] *= config.dt # pixels to seconds
     best_vertices[:, 1:] *= config.dx # pixels to meters
 
@@ -130,7 +131,7 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None) -> No
 
     if config.make_junc_summary:
         for junc in sample.juncs:
-            fig = plot_junction_summary_3x3(junc=junc)
+            fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
             png_name = f'{junc.source_file.stem}_{"top" if junc.is_top else "bottom"}_3x3summary.png'
             fig.savefig(junction_summary_dir / f'{png_name}')
             plt.close(fig)

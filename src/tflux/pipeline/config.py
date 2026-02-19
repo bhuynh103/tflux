@@ -6,9 +6,9 @@ Created on Sun Jul 20 18:17:16 2025
 """
 from pathlib import Path
 
-DATA_DIR_PATH = Path('data/raw/temp/LatB/experimental') # Swap all-data and temp
+DATA_DIR_PATH = Path('data/raw/temp/WT') # Swap all-data and temp
 
-CROP_PERCENT: float = 0.1  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
+CROP_PERCENT: float = 0.3  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
 WINDOW_SIZE: int = 7  # must be odd, if even adds 1
 MAJORITY_PERCENT: float = 0.4
 SUFFICIENT_COUNT: int = 1  # must be 1 ?
@@ -27,6 +27,6 @@ cmap1 = 'viridis'
 cmap2 = 'spring'
 
 # Settings
-print_average_slopes = True
+print_average_slopes = False
 make_junc_summary = True
 make_histograms = False

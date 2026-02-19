@@ -34,13 +34,15 @@ def centralize_vertices(vertices):
         raise ValueError("Invalid vertices.")
 
 
-def find_best_orientation(vertices):
+def find_best_orientation(vertices: np.ndarray, normals: np.ndarray) -> np.ndarray:
     '''
     Parameters
     ----------
     vertices : numpy.ndarray
         Vertices array with shape (total vertices, 3)
         Columns are in t, y, x order.
+    normals : numpy.ndarray
+        Normals array with shape (total vertices, 3)
 
     Returns
     -------
