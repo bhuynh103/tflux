@@ -15,6 +15,7 @@ dependencies = [
   "pandas",
   "matplotlib",
   "seaborn",
+  "open3d"
 ]
 
 [tool.setuptools]
