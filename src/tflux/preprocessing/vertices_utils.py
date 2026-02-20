@@ -23,7 +23,7 @@ def slice_vertices(vertices) -> tuple[np.ndarray, np.ndarray]:
     return top_half, bottom_half
 
 
-def centralize_vertices(vertices):
+def centralize(vertices):
     '''Centralize the vertices in the xy-plane'''
     if vertices[:, 1:].size > 1: 
         yx_center = vertices[:, 1:].mean(axis=0)  # Compute the mean of y and x
@@ -51,31 +51,41 @@ def find_best_orientation(vertices: np.ndarray, normals: np.ndarray) -> np.ndarr
         
     '''
     
-    
-    def rotate_vertices(vertices, angle_degrees) -> np.ndarray:
-        '''Rotates the vertices around the t-axis by the given angle.'''
+    def rotate(cartesian_array, angle_degrees) -> np.ndarray:
         angle_radians = np.radians(angle_degrees)
         rotation_matrix = np.array([
             [1, 0, 0],  # t-axis remains unchanged
             [0, np.cos(angle_radians), -np.sin(angle_radians)],  # y and x rotated
             [0, np.sin(angle_radians), np.cos(angle_radians)]
         ])
-        return vertices @ rotation_matrix.T
+        return cartesian_array @ rotation_matrix.T
 
-    centralized_vertices = centralize_vertices(vertices)
+    centralized_vertices = centralize(vertices)
 
     best_angle = None
-    min_y_range = float('inf')
-    best_rotated_vertices = None
 
-    # Iterate over angles from 0 to 360 degrees in 1-degree steps
+    # min_y_range = float('inf')
+    # best_rotated_vertices = None
+
+    # # Iterate over angles from 0 to 360 degrees in 1-degree steps
+    # for angle in range(0, 360, 1):
+    #     rotated_vertices = rotate(centralized_vertices, angle)
+    #     y_range = rotated_vertices[:, 1].max() - rotated_vertices[:, 1].min()  # Compute the range of y
+
+    #     if y_range < min_y_range:
+    #         min_y_range = y_range
+    #         best_angle = angle
+    #         best_rotated_vertices = rotated_vertices
+
+    best_y_sum = 0
+
     for angle in range(0, 360, 1):
-        rotated = rotate_vertices(centralized_vertices, angle)
-        y_range = rotated[:, 1].max() - rotated[:, 1].min()  # Compute the range of y
+        rotated_normals = rotate(normals, angle)
+        y_sum = np.abs(rotated_normals[:, 1]).sum()  # Compute the sum of y components of the normals
 
-        if y_range < min_y_range:
-            min_y_range = y_range
+        if y_sum > best_y_sum:
+            best_y_sum = y_sum
             best_angle = angle
-            best_rotated_vertices = rotated
-
+            best_rotated_vertices = rotate(centralized_vertices, best_angle)
+        
     return best_rotated_vertices
