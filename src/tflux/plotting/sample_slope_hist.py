@@ -2,12 +2,36 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
+import tflux.io.paths as paths
 
-<<<<<<< HEAD
-def plot_gradient_histograms(csv_path, bins=30) -> plt.Figure:
-=======
-def plot_gradient_histograms(csv_path, bins=30, title=None):
->>>>>>> 6ba60b0 (Code for histograms of 4 slopes for each sample)
+def plot_all_gradient_histograms(csv_path_list: list[Path], output_dir: Path):
+    "Remember that config.CSV_PATHS include metrics that may be outdated"
+    for csv_path in csv_path_list:
+        print(csv_path)
+        root = paths.find_root()
+        csv_path = root / csv_path
+
+        fig = plot_gradient_histograms(csv_path=csv_path, bins=16)
+        png_name = f'{csv_path.stem}_hist.png'
+
+        fig.set_subplot_titles([
+            r'From Gradient: $\frac{\partial u^2}{\partial q}$',
+            r'From Gradient: $\frac{\partial u^2}{\partial \omega}$', 
+            r'From Averaging: $\frac{d \langle u^2 \rangle_\omega}{d q}$',
+            r'From Averaging: $\frac{d \langle u^2 \rangle_q}{d \omega}$'
+        ])
+
+        fig.set_subplot_xlabels([
+            r'$\alpha$',
+            r'$\alpha$',
+            r'$\alpha$', 
+            r'$\alpha$'
+        ])
+        fig.savefig(output_dir / png_name)
+        # plt.show()
+
+
+def plot_gradient_histograms(csv_path, bins=30, title=None) -> plt.Figure:
     """
     Plot 2x2 histograms for grad_q, grad_w, linreg_q, linreg_w from a CSV.
     
@@ -80,10 +104,6 @@ def plot_gradient_histograms(csv_path, bins=30, title=None):
         ax.set_title("", fontsize=12)  # Empty, set manually with larger font
         ax.set_xlabel("")  # Empty, set manually
         ax.set_ylabel("Count")
-<<<<<<< HEAD
-
-    return fig
-=======
         
         # Make y-axis show integer counts
         ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
@@ -112,5 +132,4 @@ def plot_gradient_histograms(csv_path, bins=30, title=None):
     fig.set_subplot_titles = set_subplot_titles
     fig.set_subplot_xlabels = set_subplot_xlabels
     
-    return fig, axes
->>>>>>> 6ba60b0 (Code for histograms of 4 slopes for each sample)
+    return fig

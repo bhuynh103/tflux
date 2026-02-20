@@ -36,11 +36,7 @@ cmap1 = 'viridis'
 cmap2 = 'spring'
 
 # Settings
-# print_average_slopes = False
-# make_junc_summary = True
-# make_histograms = False
-
-process_sample_directory = False
-find_average_slopes = False
-include_junc_summary = False
-make_histograms = True
+print_average_slopes = True
+make_junc_summary = True
+make_histogram = True
+remake_histograms = False

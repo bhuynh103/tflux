@@ -3,11 +3,8 @@ from datetime import datetime
 from pathlib import Path
 
 
-
 def find_root() -> Path:
     """
-    Reads .obj files from <project_root>/data/raw/all-data/WT by default.
-
     project_root is inferred as the directory containing both 'src' and 'data'.
     """
     # --- infer project root from this file's location ---
@@ -26,7 +23,7 @@ def find_root() -> Path:
     return project_root
 
 
-def get_data_dir() -> Path:
+def get_default_data_dir() -> Path:
 
     root_path: Path = find_root()
 
@@ -39,7 +36,7 @@ def get_data_dir() -> Path:
     return data_dir
 
 
-def make_output_dir() -> Path:
+def make_output_dir(subdir_list: list[str]) -> Path:
 
     root_path: Path = find_root()
 
@@ -59,10 +56,25 @@ def make_output_dir() -> Path:
         
         if not new_dir.exists():
             new_dir.mkdir(parents=True, exist_ok=True)
-            (new_dir / "junction_summaries").mkdir(parents=True, exist_ok=True)
+            for subdir in subdir_list:
+                (new_dir / subdir).mkdir()
             return new_dir
         
         run_number += 1
+
+
+def prepare_io(set_data_dir_path: Path = None, set_output_dir_path: Path = None) -> Path:
+
+    data_dir_path = set_data_dir_path
+    output_dir_path = set_data_dir_path
+    
+    if set_data_dir_path is None:
+        data_dir_path = get_default_data_dir()  # Only works with expected file structure, otherwise error
+    
+    if set_output_dir_path is None:
+        output_dir_path = make_output_dir(subdir_list=["junction_summaries", "histograms"]) # creates junction_summaries subdirectory as well
+
+    return data_dir_path, output_dir_path
 
 
 def get_directories_in_path(path) -> list[Path]:

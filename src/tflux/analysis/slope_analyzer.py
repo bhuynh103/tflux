@@ -69,6 +69,7 @@ def save_slopes_to_csv(sample, output_dir=None, filename="slopes.csv"):
             writer.writerow([junc.mesh.a, junc.mesh.b, junc.linreg_q.m, junc.linreg_w.m, junc.source_file])
     
     print(f"Saved {len(sample.juncs)} junctions to: {output_file}")
+    return output_file
 
 
 def tension_interpolation(interp):

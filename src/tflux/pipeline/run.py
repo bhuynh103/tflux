@@ -9,7 +9,7 @@ import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.io.obj_reader as obj_reader
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
-from tflux.plotting.sample_slope_hist import plot_gradient_histograms
+from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms
 from tflux.dtypes import Sample, Junction, GridFFT, Grid, Mesh, LinReg
 
 
@@ -37,20 +37,18 @@ def prepare_obj(file: Path) -> tuple[Junction, Junction]:
 
 
 # Converting Grid to Mesh, grid shape (288, 598)
-def fft_to_mesh(grid: Grid):
-    if grid.grid_type == 'fourier':        
-        z2_mesh = grid.z_tilde
-        q_mesh, w_mesh = np.meshgrid(grid.q, grid.w, indexing='ij')
-        mesh = Mesh(q_mesh, w_mesh, z2_mesh, False)
-        return mesh
+def fft_to_mesh(grid_fft: GridFFT) -> Mesh:        
+    z2_mesh = grid_fft.z_tilde
+    q_mesh, w_mesh = np.meshgrid(grid_fft.q, grid_fft.w, indexing='ij')
+    mesh = Mesh(q_mesh, w_mesh, z2_mesh, log_scale=False)
+    return mesh
 
 
 # Converting Grid to LinReg
-def linreg_on_fft(grid: Grid):
-    if grid.grid_type == 'fourier':
-        linreg_q = grid.grid_to_linreg_over('q')
-        linreg_w = grid.grid_to_linreg_over('w')
-        return linreg_q, linreg_w
+def linreg_on_fft(grid_fft: GridFFT) -> tuple[LinReg, LinReg]:
+    linreg_q = grid_fft.fft_to_linreg_over('q')
+    linreg_w = grid_fft.fft_to_linreg_over('w')
+    return linreg_q, linreg_w
 
 
 # Preprocessing Junction into Grid and Mesh
@@ -104,38 +102,31 @@ def process_files(data_dir_path=None):
 
 
 ### PIPELINE START ###
-def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None) -> None:
-
-    # Prepare IO directories (if needed)
-    if data_dir_path is None:
-        data_dir_path = paths.get_data_dir()
-    
-    if output_dir_path is None:
-        output_dir_path = paths.make_output_dir() # creates junction_summaries subdirectory as well
-
-    # TODO: verify subdirectories exist, if not create them
-    # Assume output_dir has been created with subdirectory junction_summaries
-
-    junction_summary_dir = output_dir_path / "junction_summaries"
+def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sample_label: str = None) -> None:
 
     # Process files and extract slopes
     sample = process_files(data_dir_path)
 
-    slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)    # Data saved to slopes.csv in output_dir_path
+    metrics_csv_path = slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)    # Data saved to slopes.csv in output_dir_path
 
     if config.print_average_slopes:
         slope_analyzer.average_sample_slopes(sample, slopes=None, output_dir=output_dir_path)
-    
-    if config.make_histograms:
-        csv_path = output_dir_path / "slopes.csv"
-        fig = plot_gradient_histograms(csv_path=csv_path)
-        fig.savefig(output_dir_path / 'slope_histograms.png')
 
     if config.make_junc_summary:
+        
+        junction_summary_dir = output_dir_path / "junction_summaries"
+
         for junc in sample.juncs:
             fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
             png_name = f'{junc.source_file.stem}_{"top" if junc.is_top else "bottom"}_3x3summary.png'
-            fig.savefig(junction_summary_dir / f'{png_name}')
+            fig.savefig(junction_summary_dir / png_name)
             plt.close(fig)
-            
+    
+    if config.make_histogram:
+        hist_dir = output_dir_path / "histograms"
+        fig = plot_gradient_histograms(csv_path=metrics_csv_path, title=data_dir_path) 
+        png_name = f'{sample_label}_hist.png'
+        fig.savefig(hist_dir / png_name)
+        plt.close(fig)
+    
     return
