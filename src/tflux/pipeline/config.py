@@ -5,8 +5,17 @@ Created on Sun Jul 20 18:17:16 2025
 @author: bhuyn
 """
 from pathlib import Path
+# Constants
+
 
 DATA_DIR_PATH = Path('data/raw/temp/WT') # Swap all-data and temp
+
+CSV_PATH = Path('data/processed_trimmed/LatB/experimental/metrics.csv')
+CSV_PATHS = [Path('data/processed_trimmed/WT/metrics.csv'),
+            Path('data/processed_trimmed/Bleb/control/metrics.csv'),
+            Path('data/processed_trimmed/Bleb/experimental/metrics.csv'),
+            Path('data/processed_trimmed/LatB/control/metrics.csv'),
+            Path('data/processed_trimmed/LatB/experimental/metrics.csv')]
 
 CROP_PERCENT: float = 0.3  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
 WINDOW_SIZE: int = 7  # must be odd, if even adds 1
@@ -27,6 +36,11 @@ cmap1 = 'viridis'
 cmap2 = 'spring'
 
 # Settings
-print_average_slopes = False
-make_junc_summary = True
-make_histograms = False
+# print_average_slopes = False
+# make_junc_summary = True
+# make_histograms = False
+
+process_sample_directory = False
+find_average_slopes = False
+include_junc_summary = False
+make_histograms = True

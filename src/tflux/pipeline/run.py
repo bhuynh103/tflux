@@ -36,6 +36,23 @@ def prepare_obj(file: Path) -> tuple[Junction, Junction]:
     return top_junc, bot_junc
 
 
+# Converting Grid to Mesh, grid shape (288, 598)
+def fft_to_mesh(grid: Grid):
+    if grid.grid_type == 'fourier':        
+        z2_mesh = grid.z_tilde
+        q_mesh, w_mesh = np.meshgrid(grid.q, grid.w, indexing='ij')
+        mesh = Mesh(q_mesh, w_mesh, z2_mesh, False)
+        return mesh
+
+
+# Converting Grid to LinReg
+def linreg_on_fft(grid: Grid):
+    if grid.grid_type == 'fourier':
+        linreg_q = grid.grid_to_linreg_over('q')
+        linreg_w = grid.grid_to_linreg_over('w')
+        return linreg_q, linreg_w
+
+
 # Preprocessing Junction into Grid and Mesh
 def process_surface(junc: Junction) -> Junction:
     
@@ -55,21 +72,6 @@ def process_surface(junc: Junction) -> Junction:
     junc.mesh = junc.mesh.find_loglog_gradient()
     
     return junc
-
-
-# Converting Grid to Mesh, grid shape (288, 598)
-def fft_to_mesh(grid_fft: GridFFT) -> Mesh:        
-    z2_mesh = grid_fft.z_tilde
-    q_mesh, w_mesh = np.meshgrid(grid_fft.q, grid_fft.w, indexing='ij')
-    mesh = Mesh(q_mesh, w_mesh, z2_mesh, log_scale=False)
-    return mesh
-
-
-# Converting Grid to LinReg
-def linreg_on_fft(grid_fft: GridFFT) -> tuple[LinReg, LinReg]:
-    linreg_q = grid_fft.fft_to_linreg_over('q')
-    linreg_w = grid_fft.fft_to_linreg_over('w')
-    return linreg_q, linreg_w
 
 
 ### Batch Processing via Directory ###
