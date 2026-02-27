@@ -7,10 +7,10 @@ Created on Sun Jul 20 18:44:22 2025
 
 import csv
 from pathlib import Path
-import tflux.pipeline.config as config       
+import tflux.pipeline.config as config
+from tflux.utils.logging import get_logger
 
-
-# Stats
+logger = get_logger(__name__)
 
 def average_sample_slopes(sample, slopes: list[str], output_dir=None):
     """
@@ -36,10 +36,10 @@ def average_sample_slopes(sample, slopes: list[str], output_dir=None):
             for metric in slopes:
                 mean, std = sample.find_average_metric(metric)
                 line = f'{metric} = {mean} +/- {std}\n'
-                print(line.rstrip())  # Print to console
+                logger.info(line.rstrip())  # Log to console
                 f.write(line)  # Write to file
         
-        print(f"\nslopes saved to: {output_file}")
+        logger.info(f"\nslopes saved to: {output_file}")
 
 
 def save_slopes_to_csv(sample, output_dir=None, filename="slopes.csv"):
@@ -47,7 +47,7 @@ def save_slopes_to_csv(sample, output_dir=None, filename="slopes.csv"):
     Save all junction slopes to a CSV file.
     """
     if len(sample.juncs) == 0:
-        print("No junctions to save.")
+        logger.warning("No junctions to save.")
         return
     
     # Prepare output file path
@@ -68,7 +68,7 @@ def save_slopes_to_csv(sample, output_dir=None, filename="slopes.csv"):
         for junc in sample.juncs:
             writer.writerow([junc.mesh.a, junc.mesh.b, junc.linreg_q.m, junc.linreg_w.m, junc.source_file])
     
-    print(f"Saved {len(sample.juncs)} junctions to: {output_file}")
+    logger.info(f"Saved {len(sample.juncs)} junctions to: {output_file}")
     return output_file
 
 

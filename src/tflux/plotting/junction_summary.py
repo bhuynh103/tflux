@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import tflux.pipeline.config as config
-import tflux.plotting.visualization as vis
+import tflux.plotting.fft as fft
+import tflux.plotting.points as points
+import tflux.plotting.grids as grids
+import tflux.plotting.linreg as reg
 from tflux.dtypes import Junction
 
 def plot_junction_summary_3x3(junc: Junction) -> plt.Figure:
@@ -8,25 +11,27 @@ def plot_junction_summary_3x3(junc: Junction) -> plt.Figure:
     fig, axs = plt.subplots(3, 3, figsize=(11, 11), layout='constrained')
     axs_flat = axs.flatten()
 
-    axs_flat[0] = vis.plot_vertices_3d(
+    axs_flat[0] = points.plot_vertices_3d(
         junc.vertices,
         cmap=config.cmap1,
         title='a',
         ax=axs_flat[0],
     )
 
-    axs_flat[1] = vis.plot_xt_surface(
+    axs_flat[1] = grids.plot_xt_surface(
         junc.grid,
         cmap=config.cmap1,
         ax=axs_flat[1],
     )
 
-    # vis.plot_amplitude_distribution(junc.grid,
-    #                                           bins=50,
-    #                                           cmap=config.cmap1,
-    #                                           ax=axs[0, 2])
+    # fft.plot_amplitude_distribution(
+    #     junc.grid,
+    #     bins=50,
+    #     cmap=config.cmap1,
+    #     ax=axs[0, 2]
+    # )
 
-    axs_flat[2] = vis.plot_3d_fft(
+    axs_flat[2] = fft.plot_3d_fft(
         junc.mesh,
         log=True,
         log_residuals=False,
@@ -34,24 +39,24 @@ def plot_junction_summary_3x3(junc: Junction) -> plt.Figure:
         ax=axs_flat[2],
     )
 
-    axs_flat[3], axs_flat[6] = vis.plot_fft_vs_q_omega(
+    axs_flat[3], axs_flat[6] = fft.plot_fft_vs_q_omega(
         junc.fft.z_tilde,
         ax1=axs_flat[3],
         ax2=axs_flat[6],
     )
 
-    vis.plot_2d_fft_slope(junc.linreg_w, ax=axs_flat[3])
-    vis.plot_2d_fft_slope(junc.linreg_q, ax=axs_flat[6])
+    reg.plot_2d_fft_slope(junc.linreg_w, ax=axs_flat[3])
+    reg.plot_2d_fft_slope(junc.linreg_q, ax=axs_flat[6])
 
-    axs_flat[4], axs_flat[7] = vis.plot_fft_vs_q_omega(
+    axs_flat[4], axs_flat[7] = fft.plot_fft_vs_q_omega(
         junc.fft.z_tilde,
         ax1=axs_flat[4],
         ax2=axs_flat[7],
         scale='log',
     )
 
-    axs_flat[5] = vis.plot_2d_fft_slope(junc.linreg_w, ax=axs_flat[5], scale='log')
-    axs_flat[8] = vis.plot_2d_fft_slope(junc.linreg_q, ax=axs_flat[8], scale='log')
+    axs_flat[5] = reg.plot_2d_fft_slope(junc.linreg_w, ax=axs_flat[5], scale='log')
+    axs_flat[8] = reg.plot_2d_fft_slope(junc.linreg_q, ax=axs_flat[8], scale='log')
 
     letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
     for ax, l in zip(axs.flatten(), letters):
@@ -69,19 +74,19 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
     fig, axs = plt.subplots(2, 2, figsize=(11, 11), squeeze=True) # sharey = 'row'
     axs_flat = axs.flatten()
 
-    # vis.plot_fft_vs_q_omega(data["fft"],
-    #                                  ax1=axs_flat[0],
-    #                                  ax2=axs_flat[2])
+    fft.plot_fft_vs_q_omega(junc.fft.z_tilde,
+                                     ax1=axs_flat[0],
+                                     ax2=axs_flat[2])
 
-    # vis.plot_fft_vs_q_omega(data["fft"],
-    #                                  ax1=axs_flat[1],
-    #                                  ax2=axs_flat[3],
-    #                                  scale='log')
+    fft.plot_fft_vs_q_omega(junc.fft.z_tilde,
+                                     ax1=axs_flat[1],
+                                     ax2=axs_flat[3],
+                                     scale='log')
 
-    # vis.plot_2d_fft_slope_time(data["linreg"]["time"], ax=axs_flat[1])
-    # vis.plot_2d_fft_slope(data["linreg"]["space"], ax=axs_flat[3])
+    reg.plot_2d_fft_slope(junc.linreg_w, ax=axs_flat[1])
+    reg.plot_2d_fft_slope(junc.linreg_q, ax=axs_flat[3])
 
-    axs_flat[0] = vis.plot_3d_fft(
+    axs_flat[0] = fft.plot_3d_fft(
         junc.mesh,
         log=True,
         log_residuals=False,
@@ -89,7 +94,7 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
         ax=axs_flat[0],
     )
 
-    axs_flat[1] = vis.plot_3d_fft(
+    axs_flat[1] = fft.plot_3d_fft(
         junc.mesh,
         log=True,
         log_residuals=True,
@@ -97,7 +102,7 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
         ax=axs_flat[1],
     )
 
-    axs_flat[2] = vis.plot_3d_fft(
+    axs_flat[2] = fft.plot_3d_fft(
         junc.mesh,
         log=False,
         log_residuals=False,

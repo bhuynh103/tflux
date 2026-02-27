@@ -6,10 +6,11 @@ import tflux.pipeline.config as config
 
 
 class Junction:
-    def __init__(self, vertices: np.ndarray, is_top: bool) -> None:
+    def __init__(self, vertices: np.ndarray, is_top: bool = False, roi_index: int | None = None) -> None:
         self.source_file: Path | None = None
         self.vertices = vertices
         self.is_top = is_top
+        self.roi_index: int | None = roi_index
         self.grid: Grid | None = None
         self.fft: GridFFT | None = None
         self.mesh: Mesh | None = None
@@ -17,13 +18,30 @@ class Junction:
         self.linreg_w: LinReg | None = None
 
 
+class Cell:
+    def __init__(self, junctions: list[Junction]) -> None:
+        self.source_file: Path | None = None
+        self.junctions = junctions
+
+
 class Sample:
-    def __init__(self) -> None:
-        self.juncs: list[Junction] = []
+    def __init__(self, juncs: list[Junction] = None) -> None:
+        self.juncs: list[Junction] = juncs if juncs is not None else []
+        self.cells: list[Cell] = []
     
     
     def append_junction(self, junc: Junction) -> Self:
         self.juncs.append(junc)
+        return self
+
+
+    def append_junctions(self, juncs: list[Junction]) -> Self:
+        self.juncs.extend(juncs)
+        return self
+    
+
+    def append_cell(self, cell: Cell) -> Self:
+        self.cells.append(cell)
         return self
     
 

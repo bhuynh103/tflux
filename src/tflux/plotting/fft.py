@@ -1,121 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jul 20 18:51:25 2025
-
-@author: bhuyn
-"""
-
-import numpy as np
 import matplotlib.pyplot as plt
-import tflux.pipeline.config as config
-from tflux.dtypes import Grid, Mesh
+import numpy as np
+from tflux.pipeline import config
+from tflux.plotting.axes import _ensure_ax_3d
+from tflux.dtypes import Mesh
 
-### Visualization ###
-
-def _ensure_ax_3d(ax, fig, subplot_spec=None): # Moved to axes.py
-    '''
-    Change projection of 2D ax to 3D
-
-    '''
-    if ax == None:
-        if subplot_spec == None:
-            fig.add_subplot(111, projection='3d')
-        else:
-            fig.add_subplot(subplot_spec, projection='3d')
-        return ax
-    
-    if hasattr(ax, 'name') and ax.name == '3d':
-        return ax
-    
-    pos = ax.get_subplotspec()
-    fig.delaxes(ax)
-    ax = fig.add_subplot(pos, projection='3d')
-    return ax
-
-
-def plot_vertices_3d(vertices, cmap=None, title=None, ax=None): # Moved to points.py
-    """ Plot the vertices in 3D space (t, x, y). """
-    t, y, x = vertices[:, 0], vertices[:, 1] * 1e6, vertices[:, 2] * 1e6
-
-    if ax is None:
-        fig = plt.figure(figsize=(10,8))
-        ax = fig.add_subplot(111, projection='3d')
-    else:
-        fig = ax.figure
-        ax = _ensure_ax_3d(ax, fig)
-
-    # Labels and title
-    ax.set_xlabel("T (s)")
-    ax.set_ylabel(u"X (μm)")
-    ax.set_zlabel(u"Y (μm)")
-    ax.set_title(f"{title}")
-    ax.set_box_aspect(None, zoom=1)
-    
-    y_mid = (max(y) + min(y)) / 2
-    x_range = max(x) - min(x)
-    ax.set_zlim(y_mid - x_range/2, y_mid + x_range/2)
-    
-    if cmap is None:
-        ax.scatter(t, x, y, c='gray', alpha=0.5)
-    else:
-        ax.scatter(t, x, y, c=y, cmap=cmap, s=5)
-    
-    return ax
-
-
-def plot_xt_surface(grid: Grid, cmap=config.cmap1, ax=None):  # Moved to grids.py
-    
-    surface = grid.z
-    x_range = grid.get_grid_range('x')
-    t_range = grid.get_grid_range('t')
-    
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.figure
-    
-    im = ax.imshow(surface.T, cmap=cmap, origin='lower', aspect='auto', extent=[0, x_range, 0, t_range])
-    fig.colorbar(im, ax=ax, label='Amplitude (m)')
-    ax.set_xlabel('X (m)')
-    ax.set_ylabel('T (s)')
-    
-    return
-
-
-def plot_amplitude_distribution(grid, bins=50, cmap=config.cmap1, ax=None):  # Moved to grids.py
-    surface = grid.z
-    amplitudes = surface.flatten()
-
-    if ax is None:
-        fig = plt.figure(figsize=(6, 4), dpi=300)
-        ax = fig.add_subplot(111)
-    else:
-        fig = ax.figure
-
-    n, bins, patches = ax.hist(
-        amplitudes,
-        bins=bins,
-        edgecolor="black",
-        linewidth=0.6,
-    )
-    
-    bin_centers = 0.5 * (bins[:-1] - bins[1:])
-    col = bins - min(bin_centers)
-    col /= max(col)
-    
-    cm = plt.get_cmap(cmap)
-    
-    for c, p in zip(col, patches):
-        p.set_facecolor(cm(c))
-    
-    ax.set_xlabel("Amplitude", fontsize=12)
-    ax.set_ylabel("Counts", fontsize=12)
-    ax.tick_params(axis="both", which="major", labelsize=10)
-
-    return ax
-
-
-def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):  # Moved to fft.py
+def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):
     
     if ax is None:
         fig = plt.figure(figsize=(10,8))
@@ -168,8 +57,6 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
     ax.set_box_aspect(None, zoom=1)
     
     return ax
-
-
 
 
 def plot_fft_vs_q_omega_loglog(fft, ax1=None, ax2=None):
@@ -350,41 +237,3 @@ def plot_fft_vs_q_omega(fft, ax1=None, ax2=None, scale=None):
         ax2.set_xlim(q[q_positive_mask].min()*0.8, q[q_positive_mask].max()*1.2)
         
     return ax1, ax2
-
-
-
-### Analysis ###
-
-def plot_2d_fft_slope(linreg, ax, scale=None):
-        
-    log_kx = linreg.x
-    log_msd = linreg.y
-    # log_std_err = linreg["yerr"]
-    fit_tangent = linreg.x * linreg.m + linreg.int
-    
-    kx = 10 ** log_kx
-    msd = 10 ** log_msd
-    fit_tangent_10 = 10 ** fit_tangent    
-
-    if ax == None:
-        fig, ax = plt.subplots()
-    
-    # Plot the scatterplot
-    
-    # ax.errorbar(log_kx, log_msd, yerr=log_std_err, fmt="k.", c='red', capsize=0, elinewidth=0.5)
-    ax.errorbar(kx, msd, yerr=0, fmt=".", c='black', capsize=0, elinewidth=0.5, ms=4, lw=0.25)
-    # ax.plot(log_kx, fit_best, color='red')
-    ax.plot(kx, fit_tangent_10, color='black')
-    
-    if scale == 'log':
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-        match linreg.xlabel:
-            case 'q':
-                ax.set_xlabel("log q (1/m)")
-            case 'w':
-                ax.set_xlabel("log omega (1/s)")
-        ax.set_ylabel("log amp squared (m^4)") # r"Log $\langle |u^2(q)| \rangle$ $(m^4)$"
-    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
-    
-    return ax

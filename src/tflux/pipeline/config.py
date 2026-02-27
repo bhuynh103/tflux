@@ -23,6 +23,7 @@ MAJORITY_PERCENT: float = 0.4
 SUFFICIENT_COUNT: int = 1  # must be 1 ?
 MIN_VALUE = 0  # floor of junction z-tilde ?
 
+do_scaling: bool = True
 dx: float = 0.205 * (10 ** -6)  # meter per x pixel
 dt: float = 1.0  # seconds per t pixel
 
@@ -36,7 +37,8 @@ cmap1 = 'viridis'
 cmap2 = 'spring'
 
 # Settings
-print_average_slopes = True
+LOG_LEVEL = 'INFO'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+save_average_slope_csv = True
 make_junc_summary = True
 make_histogram = True
 remake_histograms = False
