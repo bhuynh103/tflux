@@ -15,4 +15,3 @@ dependencies:
       - dagshub
       - dvc
       - dvc-s3
-      - open3d
