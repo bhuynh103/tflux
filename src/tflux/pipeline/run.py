@@ -51,20 +51,28 @@ def linreg_on_fft(grid_fft: GridFFT) -> tuple[LinReg, LinReg]:
 
 # Preprocessing Junction into Grid and Mesh
 def process_surface(junc: Junction) -> Junction:
-    
+    logger.info(f"Gridding junction {junc.roi_index} with {len(junc.vertices)} vertices")
     junc.grid = grid_utils.grid_xt(junc)  # Constructs the Grid object
-    logger.info(f'Grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
+    logger.debug(f'Original grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
+
+    logger.info(f"Interpolating zeros")
     junc.grid = grid_utils.interpolate_zeros(junc.grid)
+
+    logger.info(f"Trimming grid with crop_percent={config.CROP_PERCENT})")
     junc.grid = grid_utils.trim_grid(junc.grid, crop_percent=config.CROP_PERCENT)
-    logger.info(f'Trimmed x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
+    logger.debug(f'Trimmed grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
 
     junc.fft = junc.grid.fourier_transform(shift_fft=True, square_fft=True)
-    logger.info(f'Trimmed fft q: {len(junc.fft.q)}, w: {len(junc.fft.w)}')
+    logger.debug(f'Trimmed fft grid size q: {len(junc.fft.q)}, w: {len(junc.fft.w)}')
     junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.fft)
     
+    logger.info(f"Constructing mesh from fft")
     junc.mesh = fft_to_mesh(junc.fft)  # Contruct the Mesh object
 
+    logger.info(f"Applying masks to mesh.")
     junc.mesh = junc.mesh.apply_masks(denoise=True)  # Slice above positive frequency and below noise floor
+
+    logger.info(f"Finding log-log gradient")
     junc.mesh = junc.mesh.find_loglog_gradient()
     
     return junc
@@ -104,7 +112,9 @@ def process_files(data_dir_path=None):
 
 ### PIPELINE START ###
 def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sample_label: str = None) -> None:
-
+    logger.info("="*60)
+    logger.info("Starting tflux pipeline")
+    logger.info("="*60)
     # Process files and extract slopes
     sample = process_files(data_dir_path)
 

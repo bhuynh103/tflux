@@ -241,8 +241,6 @@ def relabel_small_components(
     if k is None:
         k = int(labels.max()) + 1
 
-    logger.info(f"Removing and reassigning small components with fewer than {min_faces} faces")
-
     visited = np.zeros(F, dtype=bool)
 
     for start in range(F):
@@ -311,12 +309,15 @@ def extract_junctions_partitioned(
     labels, centers = kmeans_unit_vectors_cosine(face_n, k=k, n_iter=kmeans_iter, seed=seed)
 
     # 2) smooth labels on the mesh graph (fills holes, enforces coherence)
+    logger.info(f"Smoothing labels with ICM: n_iter={smooth_iter}, lam={lam}")
     labels, centers = smooth_labels_icm(labels, face_n, adj, k=k, n_iter=smooth_iter, lam=lam)
 
     # 3) remove small islands (topology cleanup)
+    logger.info(f"Removing small components with fewer than {min_island_faces} faces")
     labels = relabel_small_components(labels, adj, min_faces=min_island_faces, k=k)
 
     # 4) build Junctions per label
+    logger.info(f"Building Junctions from labels")
     junctions: List[Junction] = []
     for roi_index in range(k):
         faces_in = np.where(labels == roi_index)[0]
