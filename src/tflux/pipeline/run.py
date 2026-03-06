@@ -6,7 +6,7 @@ import tflux.io.paths as paths
 import tflux.pipeline.config as config
 import tflux.preprocessing.grid_utils as grid_utils
 import tflux.preprocessing.vertices_utils as vertices_utils
-import tflux.preprocessing.kmean_norms as kmean_norms
+import tflux.preprocessing.kmean_norms2 as kmean_norms
 import tflux.io.obj_reader as obj_reader
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
@@ -51,14 +51,15 @@ def linreg_on_fft(grid_fft: GridFFT) -> tuple[LinReg, LinReg]:
 
 # Preprocessing Junction into Grid and Mesh
 def process_surface(junc: Junction) -> Junction:
-    logger.info(f"Gridding junction {junc.roi_index} with {len(junc.vertices)} vertices")
+    logger.info(f"Analyzing junction {junc.roi_index} with {len(junc.vertices)} vertices")
+    logger.debug(f"Gridding junction")
     junc.grid = grid_utils.grid_xt(junc)  # Constructs the Grid object
     logger.debug(f'Original grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
 
-    logger.info(f"Interpolating zeros")
+    logger.debug(f"Interpolating zeros")
     junc.grid = grid_utils.interpolate_zeros(junc.grid)
 
-    logger.info(f"Trimming grid with crop_percent={config.CROP_PERCENT})")
+    logger.debug(f"Trimming grid with crop_percent={config.CROP_PERCENT})")
     junc.grid = grid_utils.trim_grid(junc.grid, crop_percent=config.CROP_PERCENT)
     logger.debug(f'Trimmed grid size x: {len(junc.grid.x)}, t: {len(junc.grid.t)}')
 
@@ -66,13 +67,13 @@ def process_surface(junc: Junction) -> Junction:
     logger.debug(f'Trimmed fft grid size q: {len(junc.fft.q)}, w: {len(junc.fft.w)}')
     junc.linreg_q, junc.linreg_w = linreg_on_fft(junc.fft)
     
-    logger.info(f"Constructing mesh from fft")
+    logger.debug(f"Constructing mesh from fft")
     junc.mesh = fft_to_mesh(junc.fft)  # Contruct the Mesh object
 
-    logger.info(f"Applying masks to mesh.")
+    logger.debug(f"Applying masks to mesh.")
     junc.mesh = junc.mesh.apply_masks(denoise=True)  # Slice above positive frequency and below noise floor
 
-    logger.info(f"Finding log-log gradient")
+    logger.debug(f"Finding log-log gradient")
     junc.mesh = junc.mesh.find_loglog_gradient()
     
     return junc
@@ -90,13 +91,19 @@ def process_files(data_dir_path=None):
         return None
     
     sample = Sample()
-    for file_path in obj_files:
-        junctions = kmean_norms.extract_junctions_partitioned(
+    for file_index, file_path in enumerate(obj_files):
+        logger.info(f"\nProcessing file {file_index}/{len(obj_files)-1}")
+        junctions = kmean_norms.extract_junctions(
             Path(file_path),
             k=3,
+            smooth_iter=3,
             lam=0.9,
             min_island_faces=500,
+            normal_weight=1.0,
+            geom_weight=0.5
         )
+
+        junctions = [vertices_utils.reorient_junction(junc) for junc in junctions]
 
         junctions = [process_surface(junc) for junc in junctions]
 
@@ -104,6 +111,16 @@ def process_files(data_dir_path=None):
             junc.source_file = file_path
 
         cell = Cell(junctions=junctions)
+
+        # Remove sparse junctions with holes
+        for junc in cell.junctions:
+            if junc.grid is not None and junc.grid.percent_zero > 0.20:
+                logger.info(f"Omitting sparse junction at roi_index {junc.roi_index} with {junc.grid.percent_zero * 100:.2f}% zeroes.")
+                junc.roi_index = -1
+            else:
+                junc.sample_index = len(sample.valid_juncs)
+                sample.valid_juncs.append(junc)
+
         sample.append_junctions(juncs=junctions)
         sample.append_cell(cell=cell)
 
@@ -127,7 +144,7 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         
         junction_summary_dir = output_dir_path / "junction_summaries"
 
-        for junc in sample.juncs:
+        for junc in sample.valid_juncs:
             fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
             png_name = f'{junc.source_file.stem}_J{junc.roi_index}_3x3summary.png'
             fig.savefig(junction_summary_dir / png_name)

@@ -7,9 +7,11 @@ Created on Sun Jul 20 18:20:51 2025
 
 import numpy as np
 import tflux.pipeline.config as config
+from tflux.utils.logging import get_logger
 from tflux.dtypes import Junction, Grid
 from scipy.ndimage import generic_filter
 
+logger = get_logger(__name__)
 
 # Gridding
 def grid_xt(junc: Junction) -> Grid:
@@ -51,13 +53,8 @@ def grid_xt(junc: Junction) -> Grid:
     np.divide(bin_grid, count_grid, out=bin_grid, where=~np.isnan(bin_grid))
     
     # Track the number of zeroes in a grid.
-    percent_zero: float = float(np.count_nonzero(count_grid == 0)) * 100 / (grid_size_x * grid_size_t)  
-    
-    # print(f"    Percent Zeros: { (np.count_nonzero(count_grid == 0)) * 100/ (grid_size_x * grid_size_t):.2f}%")
-    # print(f"    Percent One: { (np.count_nonzero(count_grid == 1)) * 100/ (grid_size_x * grid_size_t):.2f}%")
-    # print(f"    Percent Two: { (np.count_nonzero(count_grid == 2)) * 100/ (grid_size_x * grid_size_t):.2f}%")
-    # print(f"    Percent Three+: { (np.count_nonzero(count_grid >= 3)) * 100/ (grid_size_x * grid_size_t):.2f}%")
-    
+    percent_zero: float = float(np.count_nonzero(count_grid == 0)) / (grid_size_x * grid_size_t)  
+    # logger.info(f"Percent zero for junction = {percent_zero}")
     zero_padded_grid = np.nan_to_num(bin_grid)
     
     grid = Grid(x=x_bins, t=t_bins, z=zero_padded_grid, cts=count_grid, percent_zero=percent_zero)

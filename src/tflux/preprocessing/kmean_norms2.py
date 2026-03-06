@@ -6,6 +6,7 @@ import tflux.pipeline.config as config
 from tflux.utils.logging import get_logger
 from tflux.dtypes import Junction
 import numpy as np
+import pandas as pd
 
 logger = get_logger(__name__)
 
@@ -106,6 +107,162 @@ def dihedral_angles(face_n: np.ndarray, pairs: np.ndarray) -> np.ndarray:
     dots = np.einsum("ij,ij->i", face_n[pairs[:, 0]], face_n[pairs[:, 1]])
     dots = np.clip(dots, -1.0, 1.0)
     return np.arccos(dots)
+
+
+# ============================================================
+# Local geometry feature extraction
+# ============================================================
+def compute_face_geometry_features(
+    vertices: np.ndarray,
+    faces_v: np.ndarray,
+    face_n: np.ndarray,
+    adj: List[List[int]],
+    *,
+    normal_weight: float = 1.0,
+    geom_weight: float = 0.5,
+) -> np.ndarray:
+    """
+    Build a per-face feature vector that combines:
+      - Unit normal            (3 dims)  — orientation
+      - Normalised centroid    (3 dims)  — spatial position
+      - Mean neighbour dihedral angle (1 dim) — local curvature
+      - Log face area          (1 dim)  — shape scale
+
+    All feature groups are individually z-score standardised before
+    weighting so that no single group dominates by raw magnitude.
+    The returned matrix is L2-row-normalised and ready for k-means.
+
+    Args:
+        normal_weight: scalar multiplier applied to the normal sub-block.
+        geom_weight:   scalar multiplier applied to centroid / curvature /
+                       area sub-block.
+    Returns:
+        features: (F, 8) float64, each row L2-normalised.
+    """
+    F = faces_v.shape[0]
+
+    # --- (a) unit normals (already unit length) ---
+    normals = face_n.copy()  # (F, 3)
+
+    # --- (b) face centroids, z-score standardised ---
+    v0 = vertices[faces_v[:, 0]]
+    v1 = vertices[faces_v[:, 1]]
+    v2 = vertices[faces_v[:, 2]]
+    centroids = (v0 + v1 + v2) / 3.0  # (F, 3)
+    c_mean = centroids.mean(axis=0)
+    c_std = centroids.std(axis=0) + 1e-12
+    centroids_norm = (centroids - c_mean) / c_std  # (F, 3)
+
+    # --- (c) mean dihedral angle to face-graph neighbours ---
+    # dot product of neighbouring normals → arccos → mean per face
+    neigh_dots = np.zeros(F, dtype=np.float64)
+    for i in range(F):
+        nb = adj[i]
+        if nb:
+            dots = np.clip(face_n[nb] @ face_n[i], -1.0, 1.0)
+            neigh_dots[i] = np.arccos(dots).mean()
+        # faces with no neighbours keep 0
+    nd_mean = neigh_dots.mean()
+    nd_std = neigh_dots.std() + 1e-12
+    curvature = (neigh_dots - nd_mean) / nd_std  # (F,)
+
+    # --- (d) log face area, z-score standardised ---
+    e1 = v1 - v0
+    e2 = v2 - v0
+    cross = np.cross(e1, e2)
+    areas = 0.5 * np.linalg.norm(cross, axis=1)  # (F,)
+    log_area = np.log(areas + 1e-12)
+    la_mean = log_area.mean()
+    la_std = log_area.std() + 1e-12
+    log_area_norm = (log_area - la_mean) / la_std  # (F,)
+
+    # --- assemble and weight ---
+    geom_block = np.column_stack([centroids_norm, curvature, log_area_norm])  # (F, 5)
+    feat = np.concatenate(
+        [normal_weight * normals, geom_weight * geom_block], axis=1
+    )  # (F, 8)
+
+    # L2-row-normalise so k-means distance is well-conditioned
+    row_norms = np.linalg.norm(feat, axis=1, keepdims=True)
+    feat = feat / np.maximum(row_norms, 1e-12)
+
+    logger.info(
+        f"Computed geometry features: shape={feat.shape}, "
+        f"normal_weight={normal_weight}, geom_weight={geom_weight}"
+    )
+
+    # Log df.head(5)
+    df = pd.DataFrame(feat, columns=[
+        "normal_t", "normal_y", "normal_x",
+        "centroid_t", "centroid_y", "centroid_x",
+        "curvature", "log_area"
+    ])
+    logger.info(f"compute_face_geometry_features — head(5):\n{df.head(5).to_string()}")
+    logger.info(f"Feature array shape: {feat.shape}")
+    return feat
+
+
+# ============================================================
+# K-means on arbitrary feature vectors (Euclidean)
+# ============================================================
+def kmeans_euclidean(
+    X: np.ndarray,
+    k: int,
+    n_iter: int = 30,
+    seed: int = 0,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Standard Euclidean k-means with k-means++-style initialisation.
+
+    Args:
+        X:      (F, D) feature matrix (rows need not be unit vectors).
+        k:      number of clusters.
+        n_iter: maximum iterations.
+        seed:   RNG seed.
+    Returns:
+        labels:  (F,) int64
+        centers: (k, D) float64
+    """
+    rng = np.random.default_rng(seed)
+    F = X.shape[0]
+    logger.info(f"Running Euclidean k-means on {F} feature vectors (dim={X.shape[1]}) with k={k}, n_iter={n_iter}, seed={seed}")
+
+    # k-means++ init: first center random, subsequent chosen with
+    # probability proportional to squared distance from nearest center
+    centers = np.empty((k, X.shape[1]), dtype=np.float64)
+    centers[0] = X[rng.integers(0, F)]
+    for ci in range(1, k):
+        dists = np.array([
+            np.min(np.sum((X - centers[cj]) ** 2, axis=1))
+            for cj in range(ci)
+        ])  # (F,) squared distances to nearest existing center
+        # farthest-point seeding (deterministic; use probabilistic if preferred)
+        centers[ci] = X[int(np.argmax(dists))]
+
+    labels = np.zeros(F, dtype=np.int64)
+    for iteration in range(n_iter):
+        # assignment: squared Euclidean distance to each center
+        # computed as ||x||^2 - 2 x·c + ||c||^2  (broadcast)
+        sq_x = (X ** 2).sum(axis=1, keepdims=True)           # (F,1)
+        sq_c = (centers ** 2).sum(axis=1)                     # (k,)
+        cross = X @ centers.T                                 # (F,k)
+        dists2 = sq_x - 2.0 * cross + sq_c                   # (F,k)
+        new_labels = np.argmin(dists2, axis=1).astype(np.int64)
+
+        if np.array_equal(new_labels, labels):
+            break
+        labels = new_labels
+
+        # update centers
+        for ci in range(k):
+            mask = labels == ci
+            if not np.any(mask):
+                centers[ci] = X[rng.integers(0, F)]
+            else:
+                centers[ci] = X[mask].mean(axis=0)
+
+    logger.info(f"Euclidean k-means completed in {iteration + 1} iterations")
+    return labels, centers
 
 
 # ============================================================
@@ -282,20 +439,36 @@ def extract_junctions(
     obj_path: str | Path,
     *,
     k: int = 3,
-    kmeans_iter: int = 40, # 40
-    smooth_iter: int = 5, # 12
+    kmeans_iter: int = 40,
+    smooth_iter: int = 4,
     lam: float = 0.9,
     min_island_faces: int = 400,
     seed: int = 0,
+    normal_weight: float = 1.0,
+    geom_weight: float = 0.5,
 ) -> List[Junction]:
     """
     Partition the entire mesh into k coherent segments (no holes):
-      1) k-means on face normals
-      2) smooth labels via ICM on adjacency graph
-      3) remove small islands
-      4) build Junction per label (unique vertices)
+      1) Build per-face feature vectors combining unit normals with local
+         geometry descriptors (centroid, mean-neighbour dihedral angle,
+         log face area).  The balance between orientation and geometry is
+         controlled by *normal_weight* and *geom_weight*.
+      2) Euclidean k-means on the combined (L2-normalised) feature vectors.
+      3) Smooth labels via ICM on the adjacency graph (uses face normals only,
+         so the MRF unary / pairwise terms remain interpretable).
+      4) Remove small islands.
+      5) Build Junction per label (unique vertices).
 
-    Returns exactly k Junctions unless some label becomes empty (rare; can happen on weird meshes).
+    Args:
+        normal_weight: Weight applied to the 3-dim unit-normal sub-block
+            before L2-row-normalisation.  Higher values push clustering to
+            favour orientation over spatial / curvature features.
+        geom_weight:   Weight applied to the 5-dim geometry sub-block
+            (normalised centroid x3, mean dihedral, log area).  Increase to
+            make spatial position and local curvature more influential.
+
+    Returns exactly k Junctions unless some label becomes empty (rare; can
+    happen on degenerate meshes).
     """
     obj_path = Path(obj_path)
     mesh = load_obj_tri_mesh(str(obj_path))
@@ -305,8 +478,17 @@ def extract_junctions(
     face_n = face_normals_from_geometry(V, Fv)
     adj, pairs = build_face_adjacency_and_pairs(Fv)
 
-    # 1) cluster normals (gives the “3 sides” effect on a rounded triangular prism)
-    labels, centers = kmeans_unit_vectors_cosine(face_n, k=k, n_iter=kmeans_iter, seed=seed)
+    # 1) Build combined feature vectors and cluster
+    logger.info(
+        f"Building geometry features with normal_weight={normal_weight}, "
+        f"geom_weight={geom_weight}"
+    )
+    feat = compute_face_geometry_features(
+        V, Fv, face_n, adj,
+        normal_weight=normal_weight,
+        geom_weight=geom_weight,
+    )
+    labels, _feat_centers = kmeans_euclidean(feat, k=k, n_iter=kmeans_iter, seed=seed)
 
     # 2) smooth labels on the mesh graph (fills holes, enforces coherence)
     logger.info(f"Smoothing labels with ICM: n_iter={smooth_iter}, lam={lam}")

@@ -11,11 +11,16 @@ class Junction:
         self.vertices = vertices
         self.is_top = is_top
         self.roi_index: int | None = roi_index
+        self.sample_index: int | None = None
         self.grid: Grid | None = None
         self.fft: GridFFT | None = None
         self.mesh: Mesh | None = None
         self.linreg_q: LinReg | None = None
         self.linreg_w: LinReg | None = None
+
+    
+    def __str__(self):
+        return f"{self.source_file} Junction {self.roi_index}"
 
 
 class Cell:
@@ -27,6 +32,7 @@ class Cell:
 class Sample:
     def __init__(self, juncs: list[Junction] = None) -> None:
         self.juncs: list[Junction] = juncs if juncs is not None else []
+        self.valid_juncs: list[Junction] = []
         self.cells: list[Cell] = []
     
     

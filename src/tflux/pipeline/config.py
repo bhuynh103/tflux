@@ -8,7 +8,7 @@ from pathlib import Path
 # Constants
 
 
-DATA_DIR_PATH = Path('data/raw/temp/WT') # Swap all-data and temp
+DATA_DIR_PATH = Path('data/raw/all-data/WT') # Swap all-data and temp
 
 CSV_PATH = Path('data/processed_trimmed/LatB/experimental/metrics.csv')
 CSV_PATHS = [Path('data/processed_trimmed/WT/metrics.csv'),
