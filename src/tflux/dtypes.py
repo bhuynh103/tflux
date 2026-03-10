@@ -11,6 +11,7 @@ class Junction:
         self.vertices = vertices
         self.is_top = is_top
         self.roi_index: int | None = roi_index
+        self.cell_index: int | None = None
         self.sample_index: int | None = None
         self.grid: Grid | None = None
         self.fft: GridFFT | None = None
@@ -20,20 +21,26 @@ class Junction:
 
     
     def __str__(self):
-        return f"{self.source_file} Junction {self.roi_index}"
+        return f"Cell {self.cell_index}, Junction {self.roi_index}: {self.source_file.stem}"
 
 
 class Cell:
     def __init__(self, junctions: list[Junction]) -> None:
         self.source_file: Path | None = None
         self.junctions = junctions
+        self.cell_index: int | None = None
 
 
 class Sample:
     def __init__(self, juncs: list[Junction] = None) -> None:
         self.juncs: list[Junction] = juncs if juncs is not None else []
         self.valid_juncs: list[Junction] = []
+        self.N: int = 0
         self.cells: list[Cell] = []
+    
+
+    def get_N(self) -> int:
+        return len(self.valid_juncs)
     
     
     def append_junction(self, junc: Junction) -> Self:

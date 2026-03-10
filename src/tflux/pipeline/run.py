@@ -1,13 +1,13 @@
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
+
 import tflux.io.paths as paths
+import tflux.io.obj_reader as obj_reader
 import tflux.pipeline.config as config
 import tflux.preprocessing.grid_utils as grid_utils
 import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.preprocessing.kmean_norms2 as kmean_norms
-import tflux.io.obj_reader as obj_reader
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
 from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms
@@ -103,14 +103,22 @@ def process_files(data_dir_path=None):
             geom_weight=0.5
         )
 
-        junctions = [vertices_utils.reorient_junction(junc) for junc in junctions]
+        # junctions = [vertices_utils.reorient_junction(junc) for junc in junctions]
 
-        junctions = [process_surface(junc) for junc in junctions]
+        # junctions = [process_surface(junc) for junc in junctions]
+
+        # for junc in junctions:
+        #     junc.source_file = file_path
+        #     junc.cell_index = file_index
 
         for junc in junctions:
             junc.source_file = file_path
+            junc.cell_index = file_index
+            junc = vertices_utils.reorient_junction(junc)
+            junc = process_surface(junc)
 
         cell = Cell(junctions=junctions)
+        cell.cell_index = file_index
 
         # Remove sparse junctions with holes
         for junc in cell.junctions:
@@ -123,6 +131,7 @@ def process_files(data_dir_path=None):
 
         sample.append_junctions(juncs=junctions)
         sample.append_cell(cell=cell)
+    N = sample.get_N() 
 
     return sample
 
@@ -144,11 +153,21 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         
         junction_summary_dir = output_dir_path / "junction_summaries"
 
-        for junc in sample.valid_juncs:
-            fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
-            png_name = f'{junc.source_file.stem}_J{junc.roi_index}_3x3summary.png'
-            fig.savefig(junction_summary_dir / png_name)
-            plt.close(fig)
+        # for junc in sample.valid_juncs:
+        #     fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
+        #     png_name = f'{junc.source_file.stem}_J{junc.roi_index}_3x3summary.png'
+        #     fig.savefig(junction_summary_dir / png_name)
+        #     plt.close(fig)
+        
+        for cell in sample.cells:
+            for junc in cell.junctions:
+                if junc.roi_index != -1:
+                    fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
+                    png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
+                    fig.savefig(junction_summary_dir / png_name)
+                    plt.close(fig)
+        
+
     
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
@@ -156,5 +175,6 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         png_name = f'{sample_label}_hist.png'
         fig.savefig(hist_dir / png_name)
         plt.close(fig)
+
     
     return

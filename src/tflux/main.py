@@ -23,7 +23,7 @@ def main():
     
     # Process sample from data dir, create metrics.csv, junction summaries, and histograms
     run.run_pipeline(data_dir_path=data_dir_path, output_dir_path=output_dir_path, sample_label="WT_temp")   # Save slope data to metrics.csv
-
+    
     return 0
 
 # Main Execution 
