@@ -17,7 +17,7 @@ CSV_PATHS = [Path('data/processed_trimmed/WT/metrics.csv'),
             Path('data/processed_trimmed/LatB/control/metrics.csv'),
             Path('data/processed_trimmed/LatB/experimental/metrics.csv')]
 
-CROP_PERCENT: float = 0.3  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
+CROP_PERCENT: float = 0.0  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
 WINDOW_SIZE: int = 7  # must be odd, if even adds 1
 MAJORITY_PERCENT: float = 0.4
 SUFFICIENT_COUNT: int = 1  # must be 1 ?
@@ -40,5 +40,6 @@ cmap2 = 'spring'
 LOG_LEVEL = 'INFO'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 save_average_slope_csv = True
 make_junc_summary = True
+include_bad_junctions_in_summary = False
 make_histogram = True
 remake_histograms = False

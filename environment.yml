@@ -17,3 +17,4 @@ dependencies:
       - dvc-s3
       - pyglet
       - reportlab
+      - codetiming

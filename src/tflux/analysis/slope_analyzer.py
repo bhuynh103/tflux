@@ -9,6 +9,7 @@ import csv
 from pathlib import Path
 import tflux.pipeline.config as config
 from tflux.utils.logging import get_logger
+from tflux.dtypes import Sample
 
 logger = get_logger(__name__)
 
@@ -43,7 +44,7 @@ def average_sample_slopes(sample, slopes: list[str], output_dir=None):
         logger.info(f"slopes saved to: {output_file}")
 
 
-def save_slopes_to_csv(sample, output_dir=None, filename="slopes.csv"):
+def save_slopes_to_csv(sample: Sample, output_dir=None, filename="slopes.csv"):
     """
     Save all junction slopes to a CSV file.
     """

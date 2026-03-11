@@ -8,7 +8,7 @@ Created on Sun Jul 20 18:20:51 2025
 import numpy as np
 import tflux.pipeline.config as config
 from tflux.utils.logging import get_logger
-from tflux.dtypes import Junction, Grid
+from tflux.dtypes import Junction, Grid, GridFFT, Mesh, LinReg
 from scipy.ndimage import generic_filter
 
 logger = get_logger(__name__)
@@ -128,3 +128,35 @@ def trim_grid(grid: Grid, crop_percent: float = config.CROP_PERCENT) -> Grid:
     grid.z = z[left:right]
     
     return grid
+
+
+def fourier_transform(grid: Grid, shift_fft=False, square_fft=False) -> GridFFT:
+    w = np.fft.fftfreq(n=len(grid.t), d=config.dt)
+    w = np.fft.fftshift(w)
+    q = np.fft.fftfreq(n=len(grid.x), d=config.dx)
+    q = np.fft.fftshift(q)
+    z_tilde = np.fft.fft2(grid.z)
+
+    if shift_fft:
+        z_tilde = np.fft.fftshift(z_tilde)
+    if square_fft:
+        z_tilde = np.abs(z_tilde) ** 2
+    
+    grid_fft = GridFFT(q=q, w=w, z_tilde=z_tilde, shifted=shift_fft, squared=square_fft)
+
+    return grid_fft
+
+
+# Converting Grid to Mesh, grid shape (288, 598)
+def fft_to_mesh(grid_fft: GridFFT) -> Mesh:        
+    z2_mesh = grid_fft.z_tilde
+    q_mesh, w_mesh = np.meshgrid(grid_fft.q, grid_fft.w, indexing='ij')
+    mesh = Mesh(q_mesh, w_mesh, z2_mesh, log_scale=False)
+    return mesh
+
+
+# Converting Grid to LinReg
+def linreg_on_fft(grid_fft: GridFFT) -> tuple[LinReg, LinReg]:
+    linreg_q = grid_fft.fft_to_linreg_over('q')
+    linreg_w = grid_fft.fft_to_linreg_over('w')
+    return linreg_q, linreg_w
