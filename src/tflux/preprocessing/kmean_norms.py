@@ -29,9 +29,9 @@ def load_obj_tri_mesh(path: str) -> Dict[str, Any]:
         raise ValueError(f"Expected a .obj file path, got directory: {p}")
     
     if config.do_scaling:
-        logger.info(f"Loading OBJ with scaling to SI units: dt={config.dt}, dx={config.dx}")
+        logger.info(f"Loading OBJ with scaling to SI units: dt={config.dt:.4f}, dx={config.dx:.4f}")
     else:
-        logger.info(f"Loading OBJ without scaling to SI units: dt={config.dt}, dx={config.dx} (scaling disabled)")
+        logger.info(f"Loading OBJ without scaling to SI units: dt={config.dt:.4f}, dx={config.dx:.4f} (scaling disabled)")
 
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
@@ -58,7 +58,7 @@ def load_obj_tri_mesh(path: str) -> Dict[str, Any]:
 
     V = np.asarray(vs, dtype=np.float64)
     Fv = np.asarray(faces_v, dtype=np.int64)
-    logger.info(f"Loaded OBJ mesh: {len(V)} vertices, {len(Fv)} faces")
+    logger.debug(f"Loaded OBJ mesh: {len(V)} vertices, {len(Fv)} faces")
     return {"vertices": V, "faces_v": Fv}
 
 
@@ -99,7 +99,7 @@ def build_face_adjacency_and_pairs(faces_v: np.ndarray) -> Tuple[List[List[int]]
                 pairs.append((f1, f2))
 
     adj = [sorted(set(nbrs)) for nbrs in adj]
-    logger.info(f"Built adjacency for {F} faces with {len(pairs)} adjacent face pairs")
+    logger.debug(f"Built adjacency for {F} faces with {len(pairs)} adjacent face pairs")
     return adj, np.asarray(pairs, dtype=np.int64)
 
 
@@ -192,13 +192,7 @@ def compute_face_geometry_features(
     )
 
     # Log df.head(5)
-    df = pd.DataFrame(feat, columns=[
-        "normal_t", "normal_y", "normal_x",
-        "centroid_t", "centroid_y", "centroid_x",
-        "curvature", "log_area"
-    ])
-    logger.info(f"compute_face_geometry_features — head(5):\n{df.head(5).to_string()}")
-    logger.info(f"Feature array shape: {feat.shape}")
+    logger.debug(f"Feature array shape: {feat.shape}")
     return feat
 
 
@@ -261,7 +255,7 @@ def kmeans_euclidean(
             else:
                 centers[ci] = X[mask].mean(axis=0)
 
-    logger.info(f"Euclidean k-means completed in {iteration + 1} iterations")
+    logger.debug(f"Euclidean k-means completed in {iteration + 1} iterations")
     return labels, centers
 
 
@@ -479,10 +473,7 @@ def extract_junctions(
     adj, pairs = build_face_adjacency_and_pairs(Fv)
 
     # 1) Build combined feature vectors and cluster
-    logger.info(
-        f"Building geometry features with normal_weight={normal_weight}, "
-        f"geom_weight={geom_weight}"
-    )
+    logger.info(f"Building geometry features with normal_weight={normal_weight}, geom_weight={geom_weight}")
     feat = compute_face_geometry_features(
         V, Fv, face_n, adj,
         normal_weight=normal_weight,
@@ -499,7 +490,7 @@ def extract_junctions(
     labels = relabel_small_components(labels, adj, min_faces=min_island_faces, k=k)
 
     # 4) build Junctions per label
-    logger.info(f"Building Junctions from labels")
+    logger.info(f"Building Junctions from k-means labels")
     junctions: List[Junction] = []
     for roi_index in range(k):
         faces_in = np.where(labels == roi_index)[0]

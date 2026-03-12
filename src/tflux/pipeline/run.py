@@ -10,6 +10,7 @@ import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.preprocessing.kmean_norms as kmean_norms
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
+from tflux.plotting.points import plot_cell_3d
 from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms
 from tflux.dtypes import Sample, Cell, Junction, GridFFT, Grid, Mesh, LinReg
 from tflux.utils.logging import get_logger
@@ -72,10 +73,10 @@ def label_junction(junc: Junction, cell: Cell, sample: Sample):
 def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
     junctions: list[Junction] = kmean_norms.extract_junctions(
         Path(file_path),
-        k=4,
+        k=config.K_MEANS,
         smooth_iter=3,
         lam=0.9,
-        min_island_faces=500,
+        min_island_faces=5000,
         normal_weight=1.0,
         geom_weight=0.5
     )
@@ -114,6 +115,7 @@ def process_files(files: list[Path]):
     for file_index, file_path in enumerate(files):
         try:
             # Updates Sample with new cell entry, junction entries, and valid_junction entries.
+            logger.info(f"\nOpening file {file_index}/{len(files)}")
             find_junctions_from_file(file_index=file_index, file_path=file_path, sample=sample)
         except Exception as e:
             logger.error(f"Failed to process file {file_path.name}: {e}")
@@ -156,5 +158,13 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         png_name = f'{sample_label}_hist.png'
         fig.savefig(hist_dir / png_name)
         plt.close(fig)
-
+    
+    if config.save_cells:
+        for cell in sample.cells:
+            cell_dir = output_dir_path / "cells"
+            fig = plot_cell_3d(cell=cell)
+            png_name = f'C{cell.cell_index}.png'
+            fig.savefig(cell_dir / png_name)
+            plt.close(fig)
+            
     return

@@ -8,8 +8,8 @@ import tflux.pipeline.config as config
 class Junction:
     def __init__(self, vertices: np.ndarray, is_top: bool = False, roi_index: int | None = None) -> None:
         self.source_file: Path | None = None
-        self.original_vertices = vertices
-        self.vertices = vertices
+        self.original_vertices: np.ndarray = vertices
+        self.vertices:np.ndarray = vertices
         self.is_top = is_top
         self.roi_index: int | None = roi_index
         self.cell_index: int | None = None

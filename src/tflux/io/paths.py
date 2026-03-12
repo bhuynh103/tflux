@@ -72,7 +72,7 @@ def prepare_io(set_data_dir_path: Path = None, set_output_dir_path: Path = None)
         data_dir_path = get_default_data_dir()  # Only works with expected file structure, otherwise error
     
     if set_output_dir_path is None:
-        output_dir_path = make_output_dir(subdir_list=["junction_summaries", "histograms"]) # creates junction_summaries subdirectory as well
+        output_dir_path = make_output_dir(subdir_list=["junction_summaries", "histograms", "cells"]) # creates junction_summaries subdirectory as well
 
     return data_dir_path, output_dir_path
 

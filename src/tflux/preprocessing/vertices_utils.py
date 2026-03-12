@@ -63,8 +63,6 @@ def find_best_orientation(vertices: np.ndarray) -> np.ndarray:  #(vertices: np.n
 
     centralized_vertices = centralize(vertices)
 
-
-
     min_y_range = float('inf')
     best_rotated_vertices = None
 

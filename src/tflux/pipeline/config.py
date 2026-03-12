@@ -8,7 +8,7 @@ from pathlib import Path
 # Constants
 
 
-DATA_DIR_PATH = Path('data/raw/temp/WT') # Swap all-data and temp
+DATA_DIR_PATH = Path('data/raw/all-data/WT') # Swap all-data and temp
 
 CSV_PATH = Path('data/processed_trimmed/LatB/experimental/metrics.csv')
 CSV_PATHS = [Path('data/processed_trimmed/WT/metrics.csv'),
@@ -17,7 +17,8 @@ CSV_PATHS = [Path('data/processed_trimmed/WT/metrics.csv'),
             Path('data/processed_trimmed/LatB/control/metrics.csv'),
             Path('data/processed_trimmed/LatB/experimental/metrics.csv')]
 
-CROP_PERCENT: float = 0.0  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
+K_MEANS: int = 3
+CROP_PERCENT: float = 0.3  # crops Grid half from left, half from right such that total cropping = CROP_PERCENT
 WINDOW_SIZE: int = 7  # must be odd, if even adds 1
 MAJORITY_PERCENT: float = 0.4
 SUFFICIENT_COUNT: int = 1  # must be 1 ?
@@ -38,8 +39,9 @@ cmap2 = 'spring'
 
 # Settings
 LOG_LEVEL = 'INFO'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-save_average_slope_csv = True
-make_junc_summary = True
+save_average_slope_csv = False
+make_junc_summary = False
 include_bad_junctions_in_summary = False
-make_histogram = True
+make_histogram = False
 remake_histograms = False
+save_cells = True
