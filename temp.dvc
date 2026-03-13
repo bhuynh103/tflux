@@ -1,0 +1,6 @@
+outs:
+- md5: 96d936a5183c27638f4d99a4ab5f1864.dir
+  size: 102277585
+  nfiles: 281
+  hash: md5
+  path: temp
