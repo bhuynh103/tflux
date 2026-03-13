@@ -21,6 +21,7 @@ dependencies = [
     "pyglet",
     "reportlab",
     "codetiming",
+    "cupy-cuda12x"
 ]
 
 [project.optional-dependencies]

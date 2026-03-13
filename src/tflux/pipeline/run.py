@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+from codetiming import Timer
 
 import tflux.io.paths as paths
 import tflux.io.obj_reader as obj_reader
@@ -62,7 +63,7 @@ def clean_junction(junc: Junction) -> Junction:
 
 def label_junction(junc: Junction, cell: Cell, sample: Sample):
     junc.cell_index = cell.cell_index
-    if junc.grid is not None and junc.grid.percent_zero > 0.20:
+    if junc.grid is not None and junc.grid.percent_zero > config.PERCENT_ZERO_THRESHOLD:
         logger.info(f"Omitting sparse junction at roi_index {junc.roi_index} with {junc.grid.percent_zero * 100:.2f}% zeroes.")
         junc.roi_index = -1
     else:
@@ -140,7 +141,9 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
     logger.info("="*60)
 
     files = get_files_from_directory(data_dir_path=data_dir_path)
-    sample = process_files(files)
+
+    with Timer(text="Processed files: {:.3f}s", logger=logger.info):
+        sample = process_files(files)
 
     # Only analyzes valid junctions
     metrics_csv_path = slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)
@@ -148,10 +151,12 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
     if config.save_average_slope_csv:
         slope_analyzer.average_sample_slopes(sample, slopes=None, output_dir=output_dir_path)
 
+
     if config.make_junc_summary:
-        junction_summary_dir = output_dir_path / "junction_summaries"
-        summarize_sample_junctions(summary_dir=junction_summary_dir, sample=sample)
-        pngs_to_pdf(input_dir=junction_summary_dir, output_path=Path(junction_summary_dir / "junc_summaries.pdf"))
+        with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
+            junction_summary_dir = output_dir_path / "junction_summaries"
+            summarize_sample_junctions(summary_dir=junction_summary_dir, sample=sample)
+            pngs_to_pdf(input_dir=junction_summary_dir, output_path=Path(junction_summary_dir / "junc_summaries.pdf"))
 
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
@@ -161,13 +166,14 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         plt.close(fig)
     
     if config.save_cells:
-        from tflux.io.png_to_pdf import pngs_to_pdf
-        for cell in sample.cells:
-            cell_dir = output_dir_path / "cells"
-            fig = plot_cell_3d(cell=cell, title=cell)
-            png_name = f'C{cell.cell_index}.png'
-            fig.savefig(cell_dir / png_name)
-            plt.close(fig)
-        pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / "cells.pdf"))
+        with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
+            from tflux.io.png_to_pdf import pngs_to_pdf
+            for cell in sample.cells:
+                cell_dir = output_dir_path / "cells"
+                fig = plot_cell_3d(cell=cell, title=cell)
+                png_name = f'C{cell.cell_index}.png'
+                fig.savefig(cell_dir / png_name)
+                plt.close(fig)
+            pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / "cells.pdf"))
             
     return

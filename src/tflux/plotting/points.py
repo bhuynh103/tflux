@@ -35,7 +35,7 @@ def plot_vertices_3d(vertices, cmap=None, title=None, ax=None): # Moved to point
     return ax
 
 
-def plot_cell_3d(cell: Cell, cmap=None, title=None, ax=None): # Moved to points.py
+def plot_cell_3d(cell: Cell, title=None, ax=None): # Moved to points.py
     """ Plot the cell in 3D space (t, x, y). """
 
     if ax is None:
