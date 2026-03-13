@@ -26,10 +26,18 @@ class Junction:
 
 
 class Cell:
-    def __init__(self, source_file: Path, junctions: list[Junction], cell_index: int) -> None:
+    def __init__(self, source_file: Path, cell_index: int) -> None:
         self.source_file: Path = source_file
-        self.junctions: list[Junction] = junctions
+        self.vertices: np.ndarray = None
+        self.norms: np.ndarray = None   # not used if geom
+        self.face_n_geom: np.ndarray = None
+        self.face_n_label: np.ndarray = None   # not used if geom
+        self.junctions: list[Junction] = None
         self.cell_index: int = cell_index
+
+
+    def __str__(self):
+        return f"Cell {self.cell_index}: {self.source_file.stem}"
 
 
 class Sample:

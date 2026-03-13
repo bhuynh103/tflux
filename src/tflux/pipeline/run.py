@@ -71,21 +71,21 @@ def label_junction(junc: Junction, cell: Cell, sample: Sample):
 
 
 def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
-    junctions: list[Junction] = kmean_norms.extract_junctions(
-        Path(file_path),
-        k=config.K_MEANS,
-        smooth_iter=3,
-        lam=0.9,
-        min_island_faces=5000,
-        normal_weight=1.0,
-        geom_weight=0.5
-    )
-
     # Assumes each file has one cell
     cell = Cell(
         source_file=file_path,
-        junctions=junctions,
         cell_index=file_index,
+    )
+
+    junctions: list[Junction] = kmean_norms.extract_junctions(
+        Path(file_path),
+        k=config.K_MEANS,
+        smooth_iter=config.SMOOTH_ITER,
+        lam=config.LAMBDA,
+        min_island_faces=config.MIN_ISLAND_FACES,
+        normal_weight=config.NORMAL_WEIGHT,
+        geom_weight=config.GEOM_WEIGHT,
+        cell=cell
     )
 
     for junc in cell.junctions:
@@ -151,6 +151,7 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
     if config.make_junc_summary:
         junction_summary_dir = output_dir_path / "junction_summaries"
         summarize_sample_junctions(summary_dir=junction_summary_dir, sample=sample)
+        pngs_to_pdf(input_dir=junction_summary_dir, output_path=Path(junction_summary_dir / "junc_summaries.pdf"))
 
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
@@ -160,11 +161,13 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         plt.close(fig)
     
     if config.save_cells:
+        from tflux.io.png_to_pdf import pngs_to_pdf
         for cell in sample.cells:
             cell_dir = output_dir_path / "cells"
-            fig = plot_cell_3d(cell=cell)
+            fig = plot_cell_3d(cell=cell, title=cell)
             png_name = f'C{cell.cell_index}.png'
             fig.savefig(cell_dir / png_name)
             plt.close(fig)
+        pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / "cells.pdf"))
             
     return

@@ -7,15 +7,24 @@ Created on Wed Dec 11 00:33:25 2024
 @author: Brain Huynh
 """
 
+
+import matplotlib.pyplot as plt
+
+from pathlib import Path
 from tflux.pipeline import config, run
 from tflux.io import paths
 from tflux.plotting.sample_slope_hist import plot_all_gradient_histograms
-import matplotlib.pyplot as plt
 
 def main():
+
     # Default output path: tflux/outputs/<date_and_index>/
     data_dir_path, output_dir_path = paths.prepare_io(set_data_dir_path=config.DATA_DIR_PATH, set_output_dir_path=None)
 
+    # Save config to .txt
+    if config.save_config:
+        with open(Path("src/tflux/pipeline/config.py"), "r") as src, open(output_dir_path / "config.txt", "w") as out:
+            out.writelines(src.readlines())
+    
     # Using this function requires preprocessed csv files, running pipeline is not needed.
     if config.remake_histograms:
         plot_all_gradient_histograms(csv_path_list=config.CSV_PATHS, output_dir=output_dir_path)

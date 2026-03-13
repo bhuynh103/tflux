@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import tflux.pipeline.config as config
 from tflux.utils.logging import get_logger
-from tflux.dtypes import Junction
+from tflux.dtypes import Junction, Cell
 import numpy as np
 import pandas as pd
 
@@ -17,15 +17,21 @@ logger = get_logger(__name__)
 # Defaults to column 0 = t, 1 = y, 2 = x from our data
 def load_obj_tri_mesh(path: str) -> Dict[str, Any]:
     vs: List[Tuple[float, float, float]] = []
+    vn: List[Tuple[float, float, float]] = []
     faces_v: List[Tuple[int, int, int]] = []
+    faces_vn: List[Tuple[int, int, int]] = []
 
-    def parse_face_token(tok: str) -> int:
-        # token forms: "v", "v//vn", "v/vt", "v/vt/vn"
-        parts = tok.split("/")
-        return int(parts[0]) - 1
+    def parse_face_token(tok: str) -> Tuple[int, int]:
+        """Parse OBJ face token. Supports: 'v', 'v//vn', 'v/vt/vn'"""
+        parts = tok.split("/")   # split on single '/'
+        v_idx = int(parts[0]) - 1
+        vn_idx = int(parts[2]) - 1 if len(parts) >= 3 and parts[2] else v_idx
+        return v_idx, vn_idx
 
     p = Path(path)
-    if p.exists() and p.is_dir():
+    if not p.exists():
+        raise FileNotFoundError(f"OBJ file not found: {p}")
+    if p.is_dir():
         raise ValueError(f"Expected a .obj file path, got directory: {p}")
     
     if config.do_scaling:
@@ -39,39 +45,63 @@ def load_obj_tri_mesh(path: str) -> Dict[str, Any]:
             if not line or line.startswith("#"):
                 continue
             if line.startswith("v "):
-                _, t, y, x = line.split()[:4]
+                parts = line.split()
+                if len(parts) < 4:
+                    logger.warning(f"Skipping malformed vertex line: {line!r}")
+                    continue
+                _, t, y, x = parts[:4]
                 if config.do_scaling:
-                    t = float(t) * config.dt
-                    y = float(y) * config.dx
-                    x = float(x) * config.dx
-                    vs.append((float(t), float(y), float(x)))
+                    vs.append((float(t) * config.dt, float(y) * config.dx, float(x) * config.dx))
                 else:
                     vs.append((float(t), float(y), float(x)))
+            elif line.startswith("vn "):
+                _, tn, yn, xn = line.split()[:4]
+                vn.append((float(tn), float(yn), float(xn)))
             elif line.startswith("f "):
-                toks = line.split()[1:]
+                toks = line.split()[1:]  # List of strings ["60//60", "70//70", "80//80"]
                 if len(toks) != 3:
                     raise ValueError(f"Non-triangular face encountered: {line}")
-                a = parse_face_token(toks[0])
-                b = parse_face_token(toks[1])
-                c = parse_face_token(toks[2])
+                a, an = parse_face_token(toks[0])
+                b, bn = parse_face_token(toks[1])
+                c, cn = parse_face_token(toks[2])
                 faces_v.append((a, b, c))
+                faces_vn.append((an, bn, cn))
 
     V = np.asarray(vs, dtype=np.float64)
+    Vn = np.asarray(vn, dtype=np.float64)
     Fv = np.asarray(faces_v, dtype=np.int64)
-    logger.debug(f"Loaded OBJ mesh: {len(V)} vertices, {len(Fv)} faces")
-    return {"vertices": V, "faces_v": Fv}
+    Fvn = np.asarray(faces_vn, dtype=np.int64)
+    logger.debug(f"Loaded OBJ mesh: {len(V)} vertices, {len(Fvn)} face norms, and {len(Fv)} faces")
+    return {"vertices": V, "norms": Vn, "faces_v": Fv, "faces_vn": Fvn}
 
 
 # ============================================================
 # Geometry / adjacency
 # ============================================================
 def face_normals_from_geometry(vertices: np.ndarray, faces_v: np.ndarray) -> np.ndarray:
+    logger.debug(faces_v.shape)
     v0 = vertices[faces_v[:, 0]]
     v1 = vertices[faces_v[:, 1]]
     v2 = vertices[faces_v[:, 2]]
+    logger.debug(v2.shape)
     n = np.cross(v1 - v0, v2 - v0)
+    logger.debug(n.shape)
     norm = np.linalg.norm(n, axis=1, keepdims=True)
-    return n / np.maximum(norm, 1e-12)
+    Fv = n / np.maximum(norm, 1e-12)
+    return Fv
+
+
+def face_normals_from_label(norms: np.ndarray, faces_vn: np.ndarray) -> np.ndarray:
+    logger.debug(faces_vn.shape)
+    n0 = norms[faces_vn[:, 0]]
+    n1 = norms[faces_vn[:, 1]]
+    n2 = norms[faces_vn[:, 2]]
+    logger.debug(n0.shape)
+    n = (n0 + n1 + n2) / 3
+    logger.debug(n.shape)
+    norm = np.linalg.norm(n, axis=1, keepdims=True)
+    Fvn = n / np.maximum(norm, 1e-12)
+    return Fvn
 
 
 def build_face_adjacency_and_pairs(faces_v: np.ndarray) -> Tuple[List[List[int]], np.ndarray]:
@@ -126,7 +156,6 @@ def compute_face_geometry_features(
       - Unit normal            (3 dims)  — orientation
       - Normalised centroid    (3 dims)  — spatial position
       - Mean neighbour dihedral angle (1 dim) — local curvature
-      - Log face area          (1 dim)  — shape scale
 
     All feature groups are individually z-score standardised before
     weighting so that no single group dominates by raw magnitude.
@@ -134,10 +163,9 @@ def compute_face_geometry_features(
 
     Args:
         normal_weight: scalar multiplier applied to the normal sub-block.
-        geom_weight:   scalar multiplier applied to centroid / curvature /
-                       area sub-block.
+        geom_weight:   scalar multiplier applied to centroid / curvature sub-block.
     Returns:
-        features: (F, 8) float64, each row L2-normalised.
+        features: (F, 7) float64, each row L2-normalised.
     """
     F = faces_v.shape[0]
 
@@ -166,21 +194,10 @@ def compute_face_geometry_features(
     nd_std = neigh_dots.std() + 1e-12
     curvature = (neigh_dots - nd_mean) / nd_std  # (F,)
 
-    # --- (d) log face area, z-score standardised ---
-    e1 = v1 - v0
-    e2 = v2 - v0
-    cross = np.cross(e1, e2)
-    areas = 0.5 * np.linalg.norm(cross, axis=1)  # (F,)
-    log_area = np.log(areas + 1e-12)
-    la_mean = log_area.mean()
-    la_std = log_area.std() + 1e-12
-    log_area_norm = (log_area - la_mean) / la_std  # (F,)
-
-    # --- assemble and weight ---
-    geom_block = np.column_stack([centroids_norm, curvature, log_area_norm])  # (F, 5)
+    geom_block = np.column_stack([centroids_norm, curvature])  # (F, 4)
     feat = np.concatenate(
         [normal_weight * normals, geom_weight * geom_block], axis=1
-    )  # (F, 8)
+    )  # (F, 7)
 
     # L2-row-normalise so k-means distance is well-conditioned
     row_norms = np.linalg.norm(feat, axis=1, keepdims=True)
@@ -205,103 +222,41 @@ def kmeans_euclidean(
     n_iter: int = 30,
     seed: int = 0,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Standard Euclidean k-means with k-means++-style initialisation.
-
-    Args:
-        X:      (F, D) feature matrix (rows need not be unit vectors).
-        k:      number of clusters.
-        n_iter: maximum iterations.
-        seed:   RNG seed.
-    Returns:
-        labels:  (F,) int64
-        centers: (k, D) float64
-    """
     rng = np.random.default_rng(seed)
     F = X.shape[0]
     logger.info(f"Running Euclidean k-means on {F} feature vectors (dim={X.shape[1]}) with k={k}, n_iter={n_iter}, seed={seed}")
 
-    # k-means++ init: first center random, subsequent chosen with
-    # probability proportional to squared distance from nearest center
+    # k-means++ init
     centers = np.empty((k, X.shape[1]), dtype=np.float64)
     centers[0] = X[rng.integers(0, F)]
+    min_dists = np.sum((X - centers[0]) ** 2, axis=1)
     for ci in range(1, k):
-        dists = np.array([
-            np.min(np.sum((X - centers[cj]) ** 2, axis=1))
-            for cj in range(ci)
-        ])  # (F,) squared distances to nearest existing center
-        # farthest-point seeding (deterministic; use probabilistic if preferred)
-        centers[ci] = X[int(np.argmax(dists))]
+        centers[ci] = X[int(np.argmax(min_dists))]
+        new_dists = np.sum((X - centers[ci]) ** 2, axis=1)
+        np.minimum(min_dists, new_dists, out=min_dists)
 
-    labels = np.zeros(F, dtype=np.int64)
+    t_mid = (np.max(X[:, 0]) + np.min(X[:, 0])) / 2
+    centers[:, 0] = t_mid
+
+    sq_x = (X ** 2).sum(axis=1, keepdims=True)  # (F,1), constant
+    labels = np.full(F, -1, dtype=np.int64)
+    iteration = 0
     for iteration in range(n_iter):
-        # assignment: squared Euclidean distance to each center
-        # computed as ||x||^2 - 2 x·c + ||c||^2  (broadcast)
-        sq_x = (X ** 2).sum(axis=1, keepdims=True)           # (F,1)
-        sq_c = (centers ** 2).sum(axis=1)                     # (k,)
-        cross = X @ centers.T                                 # (F,k)
-        dists2 = sq_x - 2.0 * cross + sq_c                   # (F,k)
+        sq_c = (centers ** 2).sum(axis=1)
+        cross = X @ centers.T
+        dists2 = sq_x - 2.0 * cross + sq_c
         new_labels = np.argmin(dists2, axis=1).astype(np.int64)
 
         if np.array_equal(new_labels, labels):
             break
         labels = new_labels
 
-        # update centers
         for ci in range(k):
             mask = labels == ci
-            if not np.any(mask):
-                centers[ci] = X[rng.integers(0, F)]
-            else:
-                centers[ci] = X[mask].mean(axis=0)
+            centers[ci] = X[mask].mean(axis=0) if np.any(mask) else X[rng.integers(0, F)]
+        centers[:, 0] = t_mid  # re-apply t clamp after center update
 
     logger.debug(f"Euclidean k-means completed in {iteration + 1} iterations")
-    return labels, centers
-
-
-# ============================================================
-# K-means on unit normals (cosine distance)
-# ============================================================
-def kmeans_unit_vectors_cosine(X: np.ndarray, k: int, n_iter: int = 30, seed: int = 0) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    X: (F,3) unit vectors
-    Returns:
-      labels: (F,)
-      centers: (k,3) unit vectors
-    Cosine distance ~ (1 - dot).
-    """
-    rng = np.random.default_rng(seed)
-    F = X.shape[0]
-
-    # kmeans++-ish init: pick 1 random, then farthest by cosine
-    logger.info(f"Running k-means on {F} unit normals with k={k}, n_iter={n_iter}, seed={seed}")
-    centers = np.empty((k, 3), dtype=np.float64)
-    centers[0] = X[rng.integers(0, F)]
-    for ci in range(1, k):
-        dots = X @ centers[:ci].T                      # (F,ci)
-        best = np.max(dots, axis=1)                    # closest center by cosine (max dot)
-        dist = 1.0 - best
-        idx = int(np.argmax(dist))
-        centers[ci] = X[idx]
-
-    # iterate
-    labels = np.zeros(F, dtype=np.int64)
-    for _ in range(n_iter):
-        dots = X @ centers.T           # (F,k)
-        new_labels = np.argmax(dots, axis=1)  # max cosine similarity
-        if np.array_equal(new_labels, labels):
-            break
-        labels = new_labels
-
-        # update centers: mean then renormalize
-        for ci in range(k):
-            mask = labels == ci
-            if not np.any(mask):
-                centers[ci] = X[rng.integers(0, F)]
-                continue
-            m = X[mask].mean(axis=0)
-            centers[ci] = m / (np.linalg.norm(m) + 1e-12)
-    logger.info(f"K-means completed in {_+1} iterations")
     return labels, centers
 
 
@@ -440,6 +395,7 @@ def extract_junctions(
     seed: int = 0,
     normal_weight: float = 1.0,
     geom_weight: float = 0.5,
+    cell: Cell
 ) -> List[Junction]:
     """
     Partition the entire mesh into k coherent segments (no holes):
@@ -467,15 +423,24 @@ def extract_junctions(
     obj_path = Path(obj_path)
     mesh = load_obj_tri_mesh(str(obj_path))
     V = mesh["vertices"]
-    Fv = mesh["faces_v"]
+    Vn = mesh["norms"]
+    Fv = mesh["faces_v"]  # 3 vertex indices form a triangle
+    Fvn = mesh["faces_vn"]  # 3 norm indices averaged estimate the true norm
 
-    face_n = face_normals_from_geometry(V, Fv)
+    face_n_geom = face_normals_from_geometry(V, Fv)
+    face_n_label = face_normals_from_label(Vn, Fvn)
+    
+    cell.vertices = V
+    cell.norms = Vn
+    cell.face_n_geom = face_n_geom
+    cell.face_n_label = face_n_label
+
     adj, pairs = build_face_adjacency_and_pairs(Fv)
 
     # 1) Build combined feature vectors and cluster
     logger.info(f"Building geometry features with normal_weight={normal_weight}, geom_weight={geom_weight}")
     feat = compute_face_geometry_features(
-        V, Fv, face_n, adj,
+        V, Fv, face_n_label, adj,
         normal_weight=normal_weight,
         geom_weight=geom_weight,
     )
@@ -483,7 +448,7 @@ def extract_junctions(
 
     # 2) smooth labels on the mesh graph (fills holes, enforces coherence)
     logger.info(f"Smoothing labels with ICM: n_iter={smooth_iter}, lam={lam}")
-    labels, centers = smooth_labels_icm(labels, face_n, adj, k=k, n_iter=smooth_iter, lam=lam)
+    labels, centers = smooth_labels_icm(labels, face_n_label, adj, k=k, n_iter=smooth_iter, lam=lam)
 
     # 3) remove small islands (topology cleanup)
     logger.info(f"Removing small components with fewer than {min_island_faces} faces")
