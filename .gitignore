@@ -1,5 +1,6 @@
 data/
 .old/
+logs/
 results/
 /data
 /outputs

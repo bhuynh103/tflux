@@ -5,9 +5,11 @@ Created on Sun Jul 20 18:17:16 2025
 @author: bhuyn
 """
 from pathlib import Path
+from datetime import datetime
 
 # Pipeline Settings
-LOG_LEVEL = 'DEBUG'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FILE = f"logs/tflux_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 save_average_slope_csv = False
 make_junc_summary = False
 include_bad_junctions_in_summary = False
@@ -16,17 +18,18 @@ remake_histograms = False
 save_cells = True
 save_config = True
 
-DATA_DIR_PATH = Path('data/raw/temp/WT') # Swap all-data and temp
+DATA_DIR_PATH = Path("data/raw/all-data/WT") # Swap all-data and temp
 
 # k-means hyperparams
 K_MEANS: int = 3
 K_MEANS_ITER: int = 40
 SMOOTH_ITER: int = 3    # Lower for better performace
 LAMBDA: float = 0.9
-MIN_ISLAND_FACES: int = 400
+MIN_ISLAND_FACES: int = 10000
 SEED: int = 0
 NORMAL_WEIGHT: float = 1.0
 GEOM_WEIGHT: float = 0.5
+PERCENT_ZERO_THRESHOLD: float = 1.00
 
 # grid interpolation hyperparams
 CROP_PERCENT: float = 0.3  # crops (CROP_PERCENT / 2) from left and right

@@ -9,11 +9,15 @@ Created on Wed Dec 11 00:33:25 2024
 
 
 import matplotlib.pyplot as plt
+from codetiming import Timer
+from tflux.utils.logging import get_logger
 
 from pathlib import Path
 from tflux.pipeline import config, run
 from tflux.io import paths
 from tflux.plotting.sample_slope_hist import plot_all_gradient_histograms
+
+logger = get_logger(__name__)
 
 def main():
 
@@ -31,7 +35,8 @@ def main():
         return 0
     
     # Process sample from data dir, create metrics.csv, junction summaries, and histograms
-    run.run_pipeline(data_dir_path=data_dir_path, output_dir_path=output_dir_path, sample_label="WT_temp")   # Save slope data to metrics.csv
+    with Timer(text="Pipeline: {:.3f}s", logger=logger.info):
+        run.run_pipeline(data_dir_path=data_dir_path, output_dir_path=output_dir_path, sample_label="WT_temp")   # Save slope data to metrics.csv
     
     return 0
 
