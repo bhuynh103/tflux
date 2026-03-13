@@ -10,15 +10,15 @@ from datetime import datetime
 # Pipeline Settings
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE = f"logs/tflux_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-save_average_slope_csv = False
-make_junc_summary = False
+DATA_DIR_PATH = Path("data/raw/all-data/WT") # Swap all-data and temp
+save_average_slope_csv = True
+make_junc_summary = True
 include_bad_junctions_in_summary = False
 make_histogram = False
 remake_histograms = False
 save_cells = True
 save_config = True
 
-DATA_DIR_PATH = Path("data/raw/all-data/WT") # Swap all-data and temp
 
 # k-means hyperparams
 K_MEANS: int = 3

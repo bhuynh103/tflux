@@ -10,6 +10,8 @@ class Junction:
         self.source_file: Path | None = None
         self.original_vertices: np.ndarray = vertices
         self.vertices:np.ndarray = vertices
+        self.face_centroids: np.ndarray = None
+        self.face_normals: np.ndarray = None
         self.is_top = is_top
         self.roi_index: int | None = roi_index
         self.cell_index: int | None = None

@@ -5,13 +5,14 @@ from codetiming import Timer
 
 import tflux.io.paths as paths
 import tflux.io.obj_reader as obj_reader
+from tflux.io.png_to_pdf import pngs_to_pdf
 import tflux.pipeline.config as config
 import tflux.preprocessing.grid_utils as grid_utils
 import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.preprocessing.kmean_norms as kmean_norms
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
-from tflux.plotting.points import plot_cell_3d
+from tflux.plotting.points import plot_cell_3d, plot_cell_3d_with_norms
 from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms
 from tflux.dtypes import Sample, Cell, Junction, GridFFT, Grid, Mesh, LinReg
 from tflux.utils.logging import get_logger
@@ -167,10 +168,10 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
     
     if config.save_cells:
         with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
-            from tflux.io.png_to_pdf import pngs_to_pdf
             for cell in sample.cells:
                 cell_dir = output_dir_path / "cells"
-                fig = plot_cell_3d(cell=cell, title=cell)
+                # fig = plot_cell_3d(cell=cell, title=cell)
+                fig = plot_cell_3d_with_norms(cell=cell, title=cell)
                 png_name = f'C{cell.cell_index}.png'
                 fig.savefig(cell_dir / png_name)
                 plt.close(fig)

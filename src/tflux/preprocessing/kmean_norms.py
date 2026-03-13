@@ -158,40 +158,44 @@ def dihedral_angles(face_n: np.ndarray, pairs: np.ndarray) -> np.ndarray:
 # ============================================================
 # Local geometry feature extraction
 # ============================================================
-def compute_face_geometry_features(
+
+def get_face_centroids(
     vertices: np.ndarray,
-    faces_v: np.ndarray,
-    face_n: np.ndarray,
+    faces_v: np.ndarray,       
+):
+    xp = get_xp()
+    vertices_g = xp.asarray(vertices)
+    faces_v_g  = xp.asarray(faces_v)
+    v0 = vertices_g[faces_v_g[:, 0]]
+    v1 = vertices_g[faces_v_g[:, 1]]
+    v2 = vertices_g[faces_v_g[:, 2]]
+    centroids = (v0 + v1 + v2) / 3.0
+    return centroids
+
+
+def compute_face_geometry_features(
+    centroids: np.ndarray,  # (F, 3)
+    face_n: np.ndarray,     # (F, 3)
     *,
     normal_weight: float = 1.0,
     geom_weight: float = 0.5,
 ) -> np.ndarray:
     xp = get_xp()
-    F = faces_v.shape[0]
 
-    with Timer(text="  feature centroids (GPU): {:.3f}s", logger=logger.debug):
-        vertices_g = xp.asarray(vertices)
-        faces_v_g  = xp.asarray(faces_v)
-        face_n_g   = xp.asarray(face_n)
-        normals    = face_n_g.copy()
-        v0 = vertices_g[faces_v_g[:, 0]]
-        v1 = vertices_g[faces_v_g[:, 1]]
-        v2 = vertices_g[faces_v_g[:, 2]]
-        centroids = (v0 + v1 + v2) / 3.0
-        c_mean = centroids.mean(axis=0)
-        c_std  = centroids.std(axis=0) + 1e-12
-        centroids_norm = (centroids - c_mean) / c_std
-        if xp is cp:
-            cp.cuda.Stream.null.synchronize()
+    # Translate mean of centroids to origin and normalize by std.
+    c_mean = centroids.mean(axis=0)
+    c_std  = centroids.std(axis=0) + 1e-12
+    centroids_norm = (centroids - c_mean) / c_std
 
-    with Timer(text="  feature assemble+normalise (GPU): {:.3f}s", logger=logger.debug):
-        feat = xp.concatenate(
-            [normal_weight * normals, geom_weight * centroids_norm], axis=1
-        )
-        row_norms = xp.linalg.norm(feat, axis=1, keepdims=True)
-        feat = feat / xp.maximum(row_norms, 1e-12)
-        if xp is cp:
-            cp.cuda.Stream.null.synchronize()
+    # Norms shouldn't need to be normalized or translated.
+    normals = xp.asarray(face_n)
+
+    feat = xp.concatenate(
+        [normal_weight * normals, geom_weight * centroids_norm], axis=1
+    )
+    # Normalize rows
+    row_norms = xp.linalg.norm(feat, axis=1, keepdims=True)
+    feat = feat / xp.maximum(row_norms, 1e-12)
 
     return cp.asnumpy(feat) if xp is cp else feat
 
@@ -201,7 +205,7 @@ def compute_face_geometry_features(
 # ============================================================
 
 def kmeans_euclidean(
-    X: np.ndarray,
+    X: np.ndarray,  # (F, 6)
     k: int,
     n_iter: int = 30,
     seed: int = 0,
@@ -211,10 +215,10 @@ def kmeans_euclidean(
     F = X.shape[0]
 
     with Timer(text="  kmeans init: {:.3f}s", logger=logger.debug):
-        Xg = xp.asarray(X, dtype=xp.float64)
-        centers = xp.empty((k, Xg.shape[1]), dtype=xp.float64)
+        Xg = xp.asarray(X, dtype=xp.float64)                    # (F, 6)
+        centers = xp.empty((k, Xg.shape[1]), dtype=xp.float64)  # (k, 6)
         centers[0] = Xg[rng.integers(0, F)]
-        min_dists = xp.sum((Xg - centers[0]) ** 2, axis=1)
+        min_dists = xp.sum((Xg - centers[0]) ** 2, axis=1)      # (F, 1)
         for ci in range(1, k):
             centers[ci] = Xg[int(xp.argmax(min_dists))]
             new_dists = xp.sum((Xg - centers[ci]) ** 2, axis=1)
@@ -230,7 +234,7 @@ def kmeans_euclidean(
         for iteration in range(n_iter):
             sq_c   = (centers ** 2).sum(axis=1)
             cross  = Xg @ centers.T
-            dists2 = sq_x - 2.0 * cross + sq_c
+            dists2 = sq_x - 2.0 * cross + sq_c  # |x|^2 - 2 x dot c + |c|^2
             new_labels = xp.argmin(dists2, axis=1).astype(xp.int64)
             if xp.array_equal(new_labels, labels):
                 break
@@ -243,8 +247,8 @@ def kmeans_euclidean(
             cp.cuda.Stream.null.synchronize()
 
     logger.debug(f"Euclidean k-means completed in {iteration + 1} iterations")
-    labels_out  = cp.asnumpy(labels)  if xp is cp else labels
-    centers_out = cp.asnumpy(centers) if xp is cp else centers
+    labels_out  = cp.asnumpy(labels)  if xp is cp else labels   # (F, 1)
+    centers_out = cp.asnumpy(centers) if xp is cp else centers  # (k, 6)
     return labels_out, centers_out
 
 
@@ -395,20 +399,21 @@ def extract_junctions(
     Fvn = mesh["faces_vn"]
 
     with Timer(text="[2/6] face_normals: {:.3f}s", logger=logger.info):
+        face_centroids = get_face_centroids(V, Fv)
         face_n_geom  = face_normals_from_geometry(V, Fv)
         face_n_label = face_normals_from_label(Vn, Fvn)
 
     cell.vertices    = V
     cell.norms       = Vn
-    cell.face_n_geom  = face_n_geom
-    cell.face_n_label = face_n_label
+    cell.face_n_geom  = face_n_geom     # (F, 3)
+    cell.face_n_label = face_n_label    # (F, 3)
 
     with Timer(text="[3/6] Building face adjacency and edge pairs: {:.3f}s", logger=logger.info):
         adj, pairs = build_face_adjacency_and_pairs(Fv)
 
     with Timer(text="[4/6] compute_face_geometry_features: {:.3f}s", logger=logger.info):
         feat = compute_face_geometry_features(
-            V, Fv, face_n_label,
+            face_centroids, face_n_geom,
             normal_weight=normal_weight,
             geom_weight=geom_weight,
         )
@@ -416,21 +421,25 @@ def extract_junctions(
     with Timer(text="[5/6] Running Euclidean k-means: {:.3f}s", logger=logger.info):
         labels, _feat_centers = kmeans_euclidean(feat, k=k, n_iter=kmeans_iter, seed=seed)
 
-    with Timer(text="[6/6] smooth_labels_icm: {:.3f}s", logger=logger.info):
-        labels, centers = smooth_labels_icm(labels, face_n_label, adj, k=k, n_iter=smooth_iter, lam=lam)
+    # Doesn't improve segmentation
+    # with Timer(text="[6/6] smooth_labels_icm: {:.3f}s", logger=logger.info):
+    #     labels, centers = smooth_labels_icm(labels, face_n_label, adj, k=k, n_iter=smooth_iter, lam=lam)
 
-    with Timer(text="[+] relabel_small_components: {:.3f}s", logger=logger.info):
+    with Timer(text="[6/6] relabel_small_components: {:.3f}s", logger=logger.info):
         labels = relabel_small_components(labels, adj, min_faces=min_island_faces, k=k)
 
     logger.info(f"Building Junctions from k-means labels")
     junctions: List[Junction] = []
     for roi_index in range(k):
-        faces_in  = np.where(labels == roi_index)[0]
-        if faces_in.size == 0:
+        faces_idx  = np.where(labels == roi_index)[0]
+        if faces_idx.size == 0:
             continue
-        verts_idx = np.unique(Fv[faces_in].reshape(-1))
+        verts_idx = np.unique(Fv[faces_idx].reshape(-1))
         verts     = V[verts_idx]
         j = Junction(vertices=verts, roi_index=roi_index)
+        j.face_centroids = face_centroids[faces_idx]
+        j.face_normals = face_n_geom[faces_idx]
+        # j.face_normals = face_n_label[faces_idx]  TODO: Verify which is better
         j.source_file = obj_path
         junctions.append(j)
 
