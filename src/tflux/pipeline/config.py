@@ -8,9 +8,10 @@ from pathlib import Path
 from datetime import datetime
 
 # Pipeline Settings
+data_dir_path: Path = Path("data/raw/temp/WT")
+save_pickle: bool = True
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE = f"logs/tflux_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-DATA_DIR_PATH = Path("data/raw/all-data/WT") # Swap all-data and temp
 save_average_slope_csv = True
 make_junc_summary = True
 include_bad_junctions_in_summary = False

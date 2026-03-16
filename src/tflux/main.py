@@ -6,9 +6,6 @@ Created on Wed Dec 11 00:33:25 2024
 
 @author: Brain Huynh
 """
-
-
-import matplotlib.pyplot as plt
 from codetiming import Timer
 from tflux.utils.logging import get_logger
 
@@ -22,7 +19,19 @@ logger = get_logger(__name__)
 def main():
 
     # Default output path: tflux/outputs/<date_and_index>/
-    data_dir_path, output_dir_path = paths.prepare_io(set_data_dir_path=config.DATA_DIR_PATH, set_output_dir_path=None)
+    # If data_dir is None, check tflux/data/raw/temp/WT as default for .obj files, otherwise error
+    logger.info("Preparing I/O paths...")
+    data_dir_path, output_dir_path = paths.prepare_io(
+        set_data_dir_path=config.data_dir_path, 
+        set_output_dir_path=None
+    )
+
+    logger.info(f"  Data dir:   {data_dir_path}")
+    logger.info(f"  Output dir: {output_dir_path}")
+    response = input("Proceed? [y/N]: ").strip().lower()
+    if response != "y":
+        logger.info("Aborted.")
+        return 0
 
     # Save config to .txt
     if config.save_config:

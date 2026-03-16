@@ -1,6 +1,7 @@
-from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
+from pathlib import Path
 from codetiming import Timer
 
 import tflux.io.paths as paths
@@ -102,14 +103,40 @@ def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
 def get_files_from_directory(data_dir_path: Path):
     if not data_dir_path.exists() or not data_dir_path.is_dir():
         raise NotADirectoryError(f"Directory not found: {data_dir_path}")
+    
+    pkl_files = sorted(data_dir_path.glob("*.pkl"))
+    if len(pkl_files) > 1:
+        logger.warning(f"Multiple .pkl files found in {data_dir_path}, ignoring and processing OBJ files.")
+    elif len(pkl_files) == 1:
+        logger.info(f"Found {pkl_files[0]}.")
+        if input("Load from pickle instead of processing OBJ files? [y/N]: ").strip().lower() == "y":
+            return pkl_files
 
     obj_files = sorted(data_dir_path.glob("*.obj"))
-
     if not obj_files:
-        logger.warning(f"No OBJ files found in directory: {data_dir_path}")
-        return None
-
+        raise FileNotFoundError(f"No OBJ files found in {data_dir_path}")
+    logger.info(f"Found {len(obj_files)} OBJ files in {data_dir_path}.")
+    if input("Proceed with processing OBJ files? [y/N]: ").strip().lower() != "y":
+        raise RuntimeError("Aborted by user.")
     return obj_files
+
+
+def _load_sample(data_dir_path: Path) -> Sample:
+    """Load Sample from .pkl or process .obj files. Saves .pkl if config.save_pickle."""
+    files = get_files_from_directory(data_dir_path=data_dir_path)
+
+    if files[0].suffix == ".pkl":
+        logger.info(f"Loading sample from pickle: {files[0]}")
+        with open(files[0], "rb") as f:
+            return pickle.load(f)
+    
+    sample = process_files(files)
+    if config.save_pickle:
+        pkl_out = data_dir_path / "sample.pkl"
+        with open(pkl_out, "wb") as f:
+            pickle.dump(sample, f)
+        logger.info(f"Sample saved to {pkl_out}")
+    return sample
 
 
 def process_files(files: list[Path]):
@@ -127,6 +154,7 @@ def process_files(files: list[Path]):
 
 def summarize_sample_junctions(summary_dir: Path, sample: Sample):
     for cell in sample.cells:
+        logger.info(f"Summarizing {len(cell.junctions)} junctions in cell {cell.cell_index}")
         for junc in cell.junctions:
             if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
                 fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
@@ -136,22 +164,25 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
 
 
 ### PIPELINE START ###
-def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sample_label: str = None) -> None:
+def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str = None) -> Sample:
     logger.info("="*60)
     logger.info("Starting tflux pipeline")
     logger.info("="*60)
 
-    files = get_files_from_directory(data_dir_path=data_dir_path)
+    if not data_dir_path.exists() or not data_dir_path.is_dir():
+        raise NotADirectoryError(f"Directory not found: {data_dir_path}")
+    
+    if not output_dir_path.exists() or not output_dir_path.is_dir():
+        raise NotADirectoryError(f"Directory not found: {output_dir_path}")
 
-    with Timer(text="Processed files: {:.3f}s", logger=logger.info):
-        sample = process_files(files)
+    # Check for .pkl and .obj files, prioritize .pkl if user confirms.
+    sample = _load_sample(data_dir_path)
 
     # Only analyzes valid junctions
     metrics_csv_path = slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)
 
     if config.save_average_slope_csv:
         slope_analyzer.average_sample_slopes(sample, slopes=None, output_dir=output_dir_path)
-
 
     if config.make_junc_summary:
         with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
@@ -167,9 +198,10 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
         plt.close(fig)
     
     if config.save_cells:
+        cell_dir = output_dir_path / "cells"
         with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
             for cell in sample.cells:
-                cell_dir = output_dir_path / "cells"
+                logger.info(f"Plotting cell {cell.cell_index}.")
                 # fig = plot_cell_3d(cell=cell, title=cell)
                 fig = plot_cell_3d_with_norms(cell=cell, title=cell)
                 png_name = f'C{cell.cell_index}.png'
@@ -177,4 +209,4 @@ def run_pipeline(data_dir_path: Path = None, output_dir_path: Path = None, sampl
                 plt.close(fig)
             pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / "cells.pdf"))
             
-    return
+    return sample

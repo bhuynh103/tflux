@@ -41,7 +41,7 @@ def average_sample_slopes(sample, slopes: list[str], output_dir=None):
                 logger.info(line.rstrip())  # Log to console
                 f.write(line)  # Write to file
         
-        logger.info(f"slopes saved to: {output_file}")
+        logger.info(f"Slopes saved to: {output_file}")
 
 
 def save_slopes_to_csv(sample: Sample, output_dir=None, filename="slopes.csv"):

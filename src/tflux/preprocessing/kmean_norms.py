@@ -393,10 +393,12 @@ def extract_junctions(
 
     with Timer(text="[1/6] load_obj_tri_mesh: {:.3f}s", logger=logger.info):
         mesh = load_obj_tri_mesh(str(obj_path))
-    V   = mesh["vertices"]
-    Vn  = mesh["norms"]
-    Fv  = mesh["faces_v"]
-    Fvn = mesh["faces_vn"]
+
+    # ndarrays
+    V   = mesh["vertices"]      # (V, 3)
+    Vn  = mesh["norms"]         # (V, 3)
+    Fv  = mesh["faces_v"]        # (F, 3)
+    Fvn = mesh["faces_vn"]       # (F, 3)   
 
     with Timer(text="[2/6] face_normals: {:.3f}s", logger=logger.info):
         face_centroids = get_face_centroids(V, Fv)
@@ -405,20 +407,22 @@ def extract_junctions(
 
     cell.vertices    = V
     cell.norms       = Vn
-    cell.face_n_geom  = face_n_geom     # (F, 3)
-    cell.face_n_label = face_n_label    # (F, 3)
+    cell.face_n_geom  = face_n_geom     # (F, 3) good norms, direct cross product
+    cell.face_n_label = face_n_label    # (F, 3) dubious norms, loaded from obj
 
     with Timer(text="[3/6] Building face adjacency and edge pairs: {:.3f}s", logger=logger.info):
         adj, pairs = build_face_adjacency_and_pairs(Fv)
 
     with Timer(text="[4/6] compute_face_geometry_features: {:.3f}s", logger=logger.info):
-        feat = compute_face_geometry_features(
+        # Uses CUDA if available, converts back to ndarray.
+        feat: np.ndarray = compute_face_geometry_features(
             face_centroids, face_n_geom,
             normal_weight=normal_weight,
             geom_weight=geom_weight,
         )
 
     with Timer(text="[5/6] Running Euclidean k-means: {:.3f}s", logger=logger.info):
+        # Uses CUDA if available, converts back to ndarrays.
         labels, _feat_centers = kmeans_euclidean(feat, k=k, n_iter=kmeans_iter, seed=seed)
 
     # Doesn't improve segmentation
@@ -426,6 +430,7 @@ def extract_junctions(
     #     labels, centers = smooth_labels_icm(labels, face_n_label, adj, k=k, n_iter=smooth_iter, lam=lam)
 
     with Timer(text="[6/6] relabel_small_components: {:.3f}s", logger=logger.info):
+        # Larger min_faces (>7500 faces) improves segmentation.
         labels = relabel_small_components(labels, adj, min_faces=min_island_faces, k=k)
 
     logger.info(f"Building Junctions from k-means labels")

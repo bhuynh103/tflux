@@ -63,7 +63,7 @@ def make_output_dir(subdir_list: list[str]) -> Path:
         run_number += 1
 
 
-def prepare_io(set_data_dir_path: Path = None, set_output_dir_path: Path = None) -> Path:
+def prepare_io(set_data_dir_path: Path = None, set_output_dir_path: Path = None, include_root = False) -> Path:
 
     data_dir_path = set_data_dir_path
     output_dir_path = set_data_dir_path
@@ -73,6 +73,9 @@ def prepare_io(set_data_dir_path: Path = None, set_output_dir_path: Path = None)
     
     if set_output_dir_path is None:
         output_dir_path = make_output_dir(subdir_list=["junction_summaries", "histograms", "cells"]) # creates junction_summaries subdirectory as well
+
+    data_dir_path = data_dir_path.resolve()
+    output_dir_path = output_dir_path.resolve()
 
     return data_dir_path, output_dir_path
 
