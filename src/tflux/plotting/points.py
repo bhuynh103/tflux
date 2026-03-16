@@ -1,8 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.ticker import FixedLocator
 from matplotlib.colors import to_rgb
 from tflux.plotting.axes import _ensure_ax_3d
 from tflux.dtypes import Cell
+from tflux.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 try:
@@ -23,7 +28,7 @@ def get_components(array):
     return array[:, 0], array[:, 1], array[:, 2]
 
 
-def plot_vertices_3d(vertices, cmap=None, title=None, ax=None): # Moved to points.py
+def plot_vertices_3d(vertices, cmap=None, title=None, ax=None):
     """ Plot the vertices in 3D space (t, x, y). """
     t, y, x = vertices[:, 0], vertices[:, 1] * 1e6, vertices[:, 2] * 1e6
 
@@ -53,7 +58,7 @@ def plot_vertices_3d(vertices, cmap=None, title=None, ax=None): # Moved to point
     return ax
 
 
-def plot_cell_3d(cell: Cell, title=None, ax=None): # Moved to points.py
+def plot_cell_3d(cell: Cell, title=None, ax=None):
     """ Plot the cell in 3D space (t, x, y). """
 
     if ax is None:
@@ -69,7 +74,7 @@ def plot_cell_3d(cell: Cell, title=None, ax=None): # Moved to points.py
     ax.set_zlabel(u"X (μm)")
     ax.set_title(f"{title}")
     ax.set_box_aspect(None, zoom=1)
-    
+
     # y_mid = (max(y) + min(y)) / 2
     # x_range = max(x) - min(x)
     # ax.set_zlim(y_mid - x_range/2, y_mid + x_range/2)
@@ -114,11 +119,12 @@ def plot_cell_3d(cell: Cell, title=None, ax=None): # Moved to points.py
     return ax.figure
 
 
-def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None): # Moved to points.py
+def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     """ Plot the cell in 3D space (t, x, y). """
+    "TODO: change font size, choose seaborn colors, change ax grid color"
 
     if ax is None:
-        fig = plt.figure(figsize=(10,8))
+        fig = plt.figure(figsize=(10,8), facecolor="#5a6c8d", edgecolor="#FF00C3")
         ax = fig.add_subplot(111, projection='3d')
     else:
         fig = ax.figure
@@ -129,9 +135,12 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None): # Moved to points.
     ax.set_ylabel(u"X (μm)")
     ax.set_zlabel(u"Y (μm)")
     ax.set_title(f"{title}")
-    ax.set_box_aspect(None, zoom=1)
-    
-    xy_scale = 1
+    ax.set_facecolor("#5d7fc0")
+    fig.set_edgecolor("#FF00C3")
+    ax.set_box_aspect(None, zoom=0.85)
+
+    xy_scale_factor = 1e6
+    logger.debug(f"Scaling x and y by {xy_scale_factor}")
     xy_step = 1
 
     color_dict = {
@@ -205,14 +214,20 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None): # Moved to points.
 
         return rot_vertices, rot_centroids, rot_norms
 
+
+    def scale_xy(coords, scale_factor):
+        scaled_coords = coords.copy()
+        scaled_coords[:, 1] *= scale_factor # Scale y by 1e6 for better visualization
+        scaled_coords[:, 2] *= scale_factor # Scale x by 1e6 for better visualization
+        return scaled_coords
+    
     # Partition ROIs in list
-    vertices_list = [junc.original_vertices for junc in cell.junctions]
-    centroids_list = [junc.face_centroids for junc in cell.junctions]
-    norms_list = [junc.face_normals for junc in cell.junctions]
+    vertices_list = [scale_xy(junc.original_vertices, xy_scale_factor) for junc in cell.junctions]
+    centroids_list = [scale_xy(junc.face_centroids, xy_scale_factor) for junc in cell.junctions]
+    norms_list = [scale_xy(junc.face_normals, xy_scale_factor) for junc in cell.junctions]
     roi_indices = [junc.roi_index for junc in cell.junctions]
 
     vertices_rotated, centroids_rotated, norms_rotated = rotate_to_minimize_y(vertices_list, centroids_list, norms_list)
-
 
     # Collect all points to compute global depth range
     all_points = np.vstack([v for v in vertices_rotated])
@@ -225,7 +240,7 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None): # Moved to points.
     d_min, d_max = depth_all.min(), depth_all.max()
 
     def depth_rgba(vertices, base_color):
-        t, y, x = vertices[:, 0], vertices[:, 1] * xy_scale, vertices[:, 2] * xy_scale
+        t, y, x = vertices[:, 0], vertices[:, 1], vertices[:, 2]
         depth = a * t + b * y + c * x
         # Normalize depth so that far points are dim (0.0), near points bright (1.0)
         brightness = base_brightness + (1 - base_brightness) * (depth - d_min) / (d_max - d_min + 1e-9)
@@ -236,13 +251,22 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None): # Moved to points.
         rgba = np.clip(rgba, 0, 1)
         return t, y, x, rgba
 
-    max_range = max(np.ptp(all_y), np.ptp(all_x))
+    max_range = max(np.ptp(all_y), np.ptp(all_x)) * 1.1
     mid_y = (max(all_y) + min(all_y)) / 2
     mid_x = (max(all_x) + min(all_x)) / 2
     ax.set_zlim(mid_y - max_range/2, mid_y + max_range/2)
     ax.set_ylim(mid_x - max_range/2, mid_x + max_range/2)
 
-    graph_range = np.sqrt(np.ptp(all_y * xy_scale) ** 2 + np.ptp(all_x * xy_scale) ** 2)
+    t_range = np.ptp(all_t)
+    x_range = np.ptp(all_x)
+    y_range = np.ptp(all_y) 
+    logger.debug(f"t_range: {t_range:.2f}, x_range: {x_range:.2f}, y_range: {y_range:.2f}")
+    ax.xaxis.set_major_locator(FixedLocator(locs=list(map(int, [0, t_range]))))
+    ax.yaxis.set_major_locator(FixedLocator(locs=list(map(int, [-x_range/2, x_range/2]))))
+    ax.zaxis.set_major_locator(FixedLocator(locs=list(map(int, [-y_range/2, y_range/2]))))
+
+
+    graph_range = np.sqrt(y_range ** 2 + x_range ** 2)
     
     for vertices, centroids, norms, roi_index in zip(vertices_rotated, centroids_rotated, norms_rotated, roi_indices):
         num_arrows = 1
@@ -258,7 +282,7 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None): # Moved to points.
         # ax.scatter(t[::xy_step], x[::xy_step], y[::xy_step], c=rgba[::xy_step], s=0.0025)
         ax.scatter(t[::xy_step], x[::xy_step], y[::xy_step], c=color_dict[roi_index], s=0.0015)
         ax.quiver(
-            to_numpy(ct)[start:stop:step], to_numpy(cx)[start:stop:step] * xy_scale, to_numpy(cy)[start:stop:step] * xy_scale,
+            to_numpy(ct)[start:stop:step], to_numpy(cx)[start:stop:step], to_numpy(cy)[start:stop:step],
             to_numpy(nt)[start:stop:step], to_numpy(nx)[start:stop:step], to_numpy(ny)[start:stop:step],
             length=graph_range * 0.25,
             alpha=1.0,

@@ -17,7 +17,7 @@ from tflux.plotting.sample_slope_hist import plot_all_gradient_histograms
 logger = get_logger(__name__)
 
 def main():
-
+    "TODO: Add CLI function to clear outputs folder"
     # Default output path: tflux/outputs/<date_and_index>/
     # If data_dir is None, check tflux/data/raw/temp/WT as default for .obj files, otherwise error
     logger.info("Preparing I/O paths...")
