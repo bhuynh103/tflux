@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.ticker import FixedLocator
@@ -8,6 +9,17 @@ from tflux.dtypes import Cell
 from tflux.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+mpl.rcParams.update({
+    'font.family': 'Arial',
+    'font.size': 14,
+    'axes.labelsize': 24,
+    'axes.titlesize': 18,
+    'xtick.labelsize': 20,
+    'ytick.labelsize': 20,
+    'figure.dpi': 300,        # publication quality
+    'savefig.dpi': 300
+})
 
 
 try:
@@ -173,10 +185,6 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
         fig = ax.figure
         ax = _ensure_ax_3d(ax, fig)
 
-    ax.set(xlabel="T (s)", ylabel=u"X (μm)", zlabel=u"Y (μm)", title=f"{title}")
-    ax.set_facecolor("#5d7fc0")
-    ax.set_box_aspect(None, zoom=1.0)
-
     SCALE       = 1e6
     COLOR       = {-1: "#919191", 0: "#b80000", 1: "#0055ff", 2: "#00ff00", 3: "#5500ff"}
     NORM_COLOR  = {-1: "#919191", 0: "#ff4141", 1: "#3579ff", 2: "#48ff48", 3: "#4b00e2"}
@@ -204,16 +212,11 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
 
     mid_y, mid_x = (all_y.max() + all_y.min()) / 2, (all_x.max() + all_x.min()) / 2
     half = max(y_range, x_range) * 1.1 / 2
-    ax.set_zlim(mid_y - half, mid_y + half)
-    ax.set_ylim(mid_x - half, mid_x + half)
-    ax.xaxis.set_major_locator(FixedLocator([0, int(t_range)]))
-    ax.yaxis.set_major_locator(FixedLocator([int(-x_range/2), int(x_range/2)]))
-    ax.zaxis.set_major_locator(FixedLocator([int(-y_range/2), int(y_range/2)]))
 
     # Plot
     for verts, centroids, norms, roi in zip(vertices_rot, centroids_rot, norms_rot, roi_indices):
         t, y, x = verts[:, 0], verts[:, 1], verts[:, 2]
-        ax.scatter(t, x, y, c=COLOR[roi], s=0.0015)
+        ax.scatter(t, x, y, c=COLOR[roi], s=0.0010)
 
         # Single quiver arrow at midpoint
         mid = len(centroids) // 2
@@ -223,5 +226,30 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
                   length=graph_range * 0.25, normalize=True,
                   color=NORM_COLOR[roi], linewidth=2.0,
                   alpha=1.0, arrow_length_ratio=0.3)
+
+    ax.view_init(elev=20, azim=-25, roll=0)
+    ax.set_box_aspect(None, zoom=1.0)
+    ax.set_facecolor("#5d7fc0")
+    ax.set_title(title,      fontsize=18)
+    ax.set_xlabel("T (s)",   fontsize=24)
+    ax.set_ylabel(u"X (μm)", fontsize=24)
+    ax.set_zlabel(u"Y (μm)", fontsize=24, labelpad=10)
+    ax.set_zlim(mid_y - half, mid_y + half)
+    ax.set_ylim(mid_x - half, mid_x + half)
+    ax.xaxis.set_major_locator(FixedLocator([0, int(t_range)]))
+    ax.yaxis.set_major_locator(FixedLocator([int(-x_range/2), int(x_range/2)]))
+    ax.zaxis.set_major_locator(FixedLocator([int(-y_range/2), int(y_range/2)]))
+
+    # Cursed Axes3D tick_params workaround, changes defaults from dict in axis3d.py
+    for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
+        axis._axinfo['tick']['outward_factor'] = 0.3  # default 0.1
+        axis._axinfo['tick']['inward_factor']  = 0.3  # default 0.2
+        axis._axinfo['tick']['linewidth'] = {
+            True:  2.0,  # major ticks
+            False: 1.0,  # minor ticks
+        }
+
+    ax.tick_params(labelsize=20) # Axes3D ignores length and width kwargs
+    logger.debug(f"{ax.xaxis.get_tick_params()}")
 
     return fig
