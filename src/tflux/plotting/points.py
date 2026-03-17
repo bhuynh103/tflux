@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib as mpl
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.ticker import FixedLocator
@@ -176,18 +177,20 @@ def rotate_to_minimize_y(
     return rot_vertices, rot_centroids, rot_norms
 
 
+# TODO: Continue work on Fig. 1, migrate 2d plots to seaborn
 def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     """Plot the cell in 3D space (t, x, y) with face normals."""
-    if ax is None:
-        fig = plt.figure(figsize=(10, 8), facecolor="#5a6c8d")
-        ax = fig.add_subplot(111, projection='3d')
-    else:
-        fig = ax.figure
-        ax = _ensure_ax_3d(ax, fig)
-
     SCALE       = 1e6
-    COLOR       = {-1: "#919191", 0: "#b80000", 1: "#0055ff", 2: "#00ff00", 3: "#5500ff"}
-    NORM_COLOR  = {-1: "#919191", 0: "#ff4141", 1: "#3579ff", 2: "#48ff48", 3: "#4b00e2"}
+    PT_SIZE     = 90
+    # colorblind-safe palette for junctions
+    palette = sns.color_palette("colorblind", n_colors=4)
+    norm_palette = [sns.desaturate(c, 0.7) for c in palette]  # softer for norms
+
+    COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i])      for i in range(4)}}
+    NORM_COLOR = {-1: "#919191", **{i: mcolors.to_hex(norm_palette[i]) for i in range(4)}}
+    FIG_COLOR   = "#FFFFFF"
+    AX_COLOR    = "#FFFFFF"
+    PANE_COLOR  = "#F3F3F3"
 
     def scale_xy(arr):
         out = arr.copy()
@@ -207,16 +210,26 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     # Axis limits
     all_pts = np.vstack(vertices_rot)
     all_t, all_y, all_x = all_pts[:, 0], all_pts[:, 1], all_pts[:, 2]
-    t_range, y_range, x_range = np.ptp(all_t), np.ptp(all_y), np.ptp(all_x)
+    t_range = ((np.ptp(all_t) + 10) // 10) * 10
+    y_range = ((np.ptp(all_y) + 10) // 10) * 10
+    x_range = ((np.ptp(all_x) + 10) // 10) * 10
     graph_range = np.sqrt(y_range ** 2 + x_range ** 2)
 
     mid_y, mid_x = (all_y.max() + all_y.min()) / 2, (all_x.max() + all_x.min()) / 2
     half = max(y_range, x_range) * 1.1 / 2
 
-    # Plot
+    # Plotting
+    if ax is None:
+        fig = plt.figure(figsize=(12, 8), facecolor=FIG_COLOR)
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        fig = ax.figure
+        ax = _ensure_ax_3d(ax, fig)
+
+    point_size = PT_SIZE / len(all_pts)
     for verts, centroids, norms, roi in zip(vertices_rot, centroids_rot, norms_rot, roi_indices):
         t, y, x = verts[:, 0], verts[:, 1], verts[:, 2]
-        ax.scatter(t, x, y, c=COLOR[roi], s=0.0010)
+        ax.scatter(t, x, y, c=COLOR[roi], s=point_size)
 
         # Single quiver arrow at midpoint
         mid = len(centroids) // 2
@@ -227,18 +240,23 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
                   color=NORM_COLOR[roi], linewidth=2.0,
                   alpha=1.0, arrow_length_ratio=0.3)
 
-    ax.view_init(elev=20, azim=-25, roll=0)
-    ax.set_box_aspect(None, zoom=1.0)
-    ax.set_facecolor("#5d7fc0")
-    ax.set_title(title,      fontsize=18)
+    ax.view_init(elev=20, azim=-45, roll=0)
+    ax.set_box_aspect(None, zoom=0.85)
+    ax.set_facecolor(AX_COLOR)
+    ax.set_title(title,      fontsize=18, pad=20)
     ax.set_xlabel("T (s)",   fontsize=24)
     ax.set_ylabel(u"X (μm)", fontsize=24)
-    ax.set_zlabel(u"Y (μm)", fontsize=24, labelpad=10)
+    ax.set_zlabel(u"Y (μm)", fontsize=24, labelpad=15)
     ax.set_zlim(mid_y - half, mid_y + half)
     ax.set_ylim(mid_x - half, mid_x + half)
     ax.xaxis.set_major_locator(FixedLocator([0, int(t_range)]))
     ax.yaxis.set_major_locator(FixedLocator([int(-x_range/2), int(x_range/2)]))
     ax.zaxis.set_major_locator(FixedLocator([int(-y_range/2), int(y_range/2)]))
+    ax.grid(True)
+
+    ax.xaxis.set_pane_color(PANE_COLOR)
+    ax.yaxis.set_pane_color(PANE_COLOR)
+    ax.zaxis.set_pane_color(PANE_COLOR)
 
     # Cursed Axes3D tick_params workaround, changes defaults from dict in axis3d.py
     for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
@@ -250,6 +268,5 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
         }
 
     ax.tick_params(labelsize=20) # Axes3D ignores length and width kwargs
-    logger.debug(f"{ax.xaxis.get_tick_params()}")
 
     return fig

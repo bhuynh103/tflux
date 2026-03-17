@@ -207,6 +207,6 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
                 png_name = f'C{cell.cell_index}.png'
                 fig.savefig(cell_dir / png_name)
                 plt.close(fig)
-            pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / "cells.pdf"))
+            pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / f"{output_dir_path.name}-cells.pdf"))
             
     return sample
