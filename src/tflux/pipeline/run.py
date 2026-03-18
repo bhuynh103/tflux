@@ -159,15 +159,12 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
             if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
                 fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
                 png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
-                fig.savefig(summary_dir / png_name)
+                fig.savefig(summary_dir / f"C{cell.cell_index}" / png_name)
                 plt.close(fig)
 
 
 ### PIPELINE START ###
 def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str = None) -> Sample:
-    logger.info("="*60)
-    logger.info("Starting tflux pipeline")
-    logger.info("="*60)
 
     if not data_dir_path.exists() or not data_dir_path.is_dir():
         raise NotADirectoryError(f"Directory not found: {data_dir_path}")
@@ -178,7 +175,15 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     # Check for .pkl and .obj files, prioritize .pkl if user confirms.
     sample = _load_sample(data_dir_path)
 
-    # Only analyzes valid junctions
+    logger.info("="*60)
+    logger.info("Starting tflux pipeline")
+    logger.info("="*60)
+
+    cell_dir = output_dir_path / "cells"
+    for cell_index in range(len(sample.cells)):
+        (cell_dir / f"C{cell_index}").mkdir(parents=True, exist_ok=True)
+
+    # Only analyze valid junctions
     metrics_csv_path = slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)
 
     if config.save_average_slope_csv:
@@ -186,9 +191,12 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
 
     if config.make_junc_summary:
         with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
-            junction_summary_dir = output_dir_path / "junction_summaries"
-            summarize_sample_junctions(summary_dir=junction_summary_dir, sample=sample)
-            pngs_to_pdf(input_dir=junction_summary_dir, output_path=Path(junction_summary_dir / "junc_summaries.pdf"))
+            summarize_sample_junctions(summary_dir=cell_dir, sample=sample)
+            pngs_to_pdf(
+                input_dir=cell_dir, 
+                output_path=Path(cell_dir / f"{output_dir_path.name}-junc_summaries.pdf"),
+                pattern="*/*summary.png"
+            )
 
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
@@ -198,15 +206,18 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
         plt.close(fig)
     
     if config.save_cells:
-        cell_dir = output_dir_path / "cells"
         with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
             for cell in sample.cells:
                 logger.info(f"Plotting cell {cell.cell_index}.")
                 # fig = plot_cell_3d(cell=cell, title=cell)
                 fig = plot_cell_3d_with_norms(cell=cell, title=cell)
-                png_name = f'C{cell.cell_index}.png'
-                fig.savefig(cell_dir / png_name)
+                png_name = f'C{cell.cell_index}_render.png'
+                fig.savefig(cell_dir / f"C{cell_index}" / png_name)
                 plt.close(fig)
-            pngs_to_pdf(input_dir=cell_dir, output_path=Path(cell_dir / f"{output_dir_path.name}-cells.pdf"))
+            pngs_to_pdf(
+                input_dir=cell_dir, 
+                output_path=Path(cell_dir / f"{output_dir_path.name}-cells.pdf"),
+                pattern="*/*render.png"
+            )
             
     return sample

@@ -7,15 +7,19 @@ from reportlab.pdfgen import canvas
 def pngs_to_pdf(
     input_dir: str | Path,
     output_path: str | Path = "output.pdf",
+    pattern: str = "*/*.png",
     sort_key=None,
     fit_to_image: bool = True,
 ) -> Path:
     """
-    Convert all PNG files in a directory to a single PDF, one image per page.
+    Convert all files matching pattern in a directory to a single PDF, one image per page.
 
     Args:
         input_dir:     Path to directory containing .png files.
         output_path:   Destination path for the generated PDF.
+        pattern:       Pattern to match in directory to search for images.
+                       Defaults to searching within each of input_dir's 
+                       subdirectories.
         sort_key:      Optional callable used to sort the PNG files before
                        assembling pages (e.g. sort_key=lambda p: p.stem).
                        Defaults to alphabetical / natural filename order.
@@ -37,7 +41,7 @@ def pngs_to_pdf(
     if not input_dir.is_dir():
         raise FileNotFoundError(f"Directory not found: {input_dir}")
 
-    png_files = sorted(input_dir.glob("*.png"), key=sort_key)
+    png_files = sorted(input_dir.glob(pattern=pattern), key=sort_key)
     if not png_files:
         raise ValueError(f"No PNG files found in: {input_dir}")
 
