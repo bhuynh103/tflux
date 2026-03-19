@@ -167,10 +167,12 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
         logger.info(f"Summarizing {len(cell.junctions)} junctions in cell {cell.cell_index}")
         for junc in cell.junctions:
             if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
-                fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
-                png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
-                fig.savefig(summary_dir / f"C{cell.cell_index}" / f"J{junc.roi_index}" / png_name)
-                plt.close(fig)
+                # fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
+                # png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
+                # fig.savefig(summary_dir / f"C{cell.cell_index}" / f"J{junc.roi_index}" / png_name)
+                # plt.close(fig)
+
+                plot_junction_summary_3x3(junc=junc, output_dir=summary_dir)
 
 
 ### PIPELINE START ###
@@ -200,11 +202,12 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     if config.make_junc_summary:
         with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
             summarize_sample_junctions(summary_dir=cell_dir, sample=sample)
-            pngs_to_pdf(
-                input_dir=cell_dir, 
-                output_path=Path(cell_dir / f"{output_dir_path.name}-junc_summaries.pdf"),
-                pattern="*/*/*summary.png"
-            )
+            if config.make_pdfs:
+                pngs_to_pdf(
+                    input_dir=cell_dir, 
+                    output_path=Path(cell_dir / f"{output_dir_path.name}-junc_summaries.pdf"),
+                    pattern="*/*/*summary.png"
+                )
 
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
@@ -216,16 +219,16 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     if config.save_cells:
         with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
             for cell in sample.cells:
-                logger.info(f"Plotting cell {cell.cell_index}.")
                 # fig = plot_cell_3d(cell=cell, title=cell)
                 fig = plot_cell_3d_with_norms(cell=cell, title=cell)
                 png_name = f'C{cell.cell_index}_render.png'
                 fig.savefig(cell_dir / f"C{cell.cell_index}" / png_name)
                 plt.close(fig)
-            pngs_to_pdf(
-                input_dir=cell_dir, 
-                output_path=Path(cell_dir / f"{output_dir_path.name}-cells.pdf"),
-                pattern="*/*render.png"
-            )
+            if config.make_pdfs:
+                pngs_to_pdf(
+                    input_dir=cell_dir, 
+                    output_path=Path(cell_dir / f"{output_dir_path.name}-cells.pdf"),
+                    pattern="*/*render.png"
+                )
             
     return sample

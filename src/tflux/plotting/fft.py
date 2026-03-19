@@ -3,11 +3,12 @@ import numpy as np
 from tflux.pipeline import config
 from tflux.plotting.axes import _ensure_ax_3d
 from tflux.dtypes import Mesh
+from tflux.plotting.rcparams import apply_3d_style
 
 def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):
     
     if ax is None:
-        fig = plt.figure(figsize=(10,8))
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
     else:
         fig = ax.figure
@@ -56,6 +57,7 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
     ax.set_zlabel(r"log amp^2 ($m^4$)")
     ax.set_box_aspect(None, zoom=1)
     
+    apply_3d_style(ax)
     return ax
 
 
@@ -141,7 +143,7 @@ def plot_fft_vs_q_omega_loglog(fft, ax1=None, ax2=None):
     ax2.set_facecolor('lightgray')    
     ax2.grid()
     
-    return ax1, ax2
+    return [ax1, ax2]
 
 
 def plot_fft_vs_q_omega(fft, ax1=None, ax2=None, scale=None):
@@ -236,4 +238,4 @@ def plot_fft_vs_q_omega(fft, ax1=None, ax2=None, scale=None):
         ax2.set_yscale('log')
         ax2.set_xlim(q[q_positive_mask].min()*0.8, q[q_positive_mask].max()*1.2)
         
-    return ax1, ax2
+    return [ax1, ax2]

@@ -1,0 +1,57 @@
+import numpy as np
+from matplotlib.ticker import FixedLocator
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import seaborn as sns
+
+
+palette = sns.color_palette("hls", n_colors=4)
+COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i])      for i in range(4)}}
+PT_SIZE    = 90
+
+
+def scale_xy(arr):
+    SCALE = 1e6
+    out = arr.copy()
+    out[:, 1:] *= SCALE
+    return out
+
+
+def set_3d_axis_ticks(ax: Axes3D, all_pts: np.ndarray) -> None:
+    """
+    Compute symmetric FixedLocator ticks from point cloud and apply to all axes.
+    Expects all_pts columns as (t, y, x).
+    """
+    def rounded_range(arr):
+        return ((np.ptp(arr) + 10) // 10) * 10
+
+    t_range = rounded_range(all_pts[:, 0])
+    y_range = rounded_range(all_pts[:, 1])
+    x_range = rounded_range(all_pts[:, 2])
+    max_range = max(y_range, x_range)
+    half = max_range * 1.1 / 2      # Add 10% padding to ensure all points fit within the limits
+
+    mid_y = (all_pts[:, 1].max() + all_pts[:, 1].min()) / 2
+    mid_x = (all_pts[:, 2].max() + all_pts[:, 2].min()) / 2
+
+    ax.xaxis.set_major_locator(FixedLocator([0, int(t_range)]))
+    ax.yaxis.set_major_locator(FixedLocator([int(-x_range / 2), int(x_range / 2)]))
+    ax.zaxis.set_major_locator(FixedLocator([int(-y_range / 2), int(y_range / 2)]))
+
+    ax.set_ylim(mid_x - half, mid_x + half)
+    ax.set_zlim(mid_y - half, mid_y + half)
+
+
+
+def letter_annotation(ax, xoffset, yoffset, letter):
+    """Add a bold letter annotation in axes-relative coordinates, Axes3D-compatible."""
+    try:
+        # get axes position in figure coordinates
+        pos = ax.get_position()
+        fig_x = pos.x0 + xoffset * pos.width
+        fig_y = pos.y0 + yoffset * pos.height
+        ax.figure.text(fig_x, fig_y, letter, size=12, weight='bold',
+                       transform=ax.figure.transFigure)
+    except AttributeError:
+        ax.text(xoffset, yoffset, letter, transform=ax.transAxes, size=12, weight='bold')

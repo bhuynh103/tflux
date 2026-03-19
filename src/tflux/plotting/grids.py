@@ -19,7 +19,7 @@ def plot_xt_surface(grid: Grid, cmap=config.cmap1, ax=None):
     ax.set_xlabel('X (m)')
     ax.set_ylabel('T (s)')
     
-    return
+    return ax
 
 
 def plot_amplitude_distribution(grid: Grid, bins=50, cmap=config.cmap1, ax=None):
@@ -27,7 +27,7 @@ def plot_amplitude_distribution(grid: Grid, bins=50, cmap=config.cmap1, ax=None)
     amplitudes = surface.flatten()
 
     if ax is None:
-        fig = plt.figure(figsize=(6, 4), dpi=300)
+        fig = plt.figure()
         ax = fig.add_subplot(111)
     else:
         fig = ax.figure

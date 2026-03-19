@@ -6,22 +6,12 @@ import seaborn as sns
 from matplotlib.ticker import FixedLocator
 from matplotlib.colors import to_rgb
 from tflux.plotting.axes import _ensure_ax_3d
-from tflux.dtypes import Cell
+from tflux.dtypes import Cell, Junction
+from tflux.plotting.rcparams import apply_3d_style
 from tflux.utils.logging import get_logger
+from tflux.plotting.plotting_utils import COLOR, PT_SIZE, scale_xy, set_3d_axis_ticks
 
 logger = get_logger(__name__)
-
-mpl.rcParams.update({
-    'font.family': 'Arial',
-    'font.size': 14,
-    'axes.labelsize': 24,
-    'axes.titlesize': 18,
-    'xtick.labelsize': 20,
-    'ytick.labelsize': 20,
-    'figure.dpi': 300,        # publication quality
-    'savefig.dpi': 300
-})
-
 
 try:
     import cupy as cp
@@ -41,33 +31,33 @@ def get_components(array):
     return array[:, 0], array[:, 1], array[:, 2]
 
 
-def plot_vertices_3d(vertices, cmap=None, title=None, ax=None):
+def plot_junc_3d(junc: Junction, title=None, ax=None):
     """ Plot the vertices in 3D space (t, x, y). """
-    t, y, x = vertices[:, 0], vertices[:, 1] * 1e6, vertices[:, 2] * 1e6
+    
+    scaled_vertices = scale_xy(to_numpy(junc.vertices))
+    t, y, x = scaled_vertices[:, 0], scaled_vertices[:, 1], scaled_vertices[:, 2]
+    point_size = PT_SIZE / len(scaled_vertices)
 
     if ax is None:
-        fig = plt.figure(figsize=(10,8))
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
     else:
         fig = ax.figure
         ax = _ensure_ax_3d(ax, fig)
 
     # Labels and title
+    ax.set_box_aspect(None, zoom=1.0)
+    ax.view_init(elev=20, azim=-45, roll=0)
     ax.set_xlabel("T (s)")
     ax.set_ylabel(u"X (μm)")
-    ax.set_zlabel(u"Y (μm)")
+    ax.set_zlabel(u"Y (μm)", labelpad=15)
     ax.set_title(f"{title}")
-    ax.set_box_aspect(None, zoom=1)
     
-    y_mid = (max(y) + min(y)) / 2
-    x_range = max(x) - min(x)
-    ax.set_zlim(y_mid - x_range/2, y_mid + x_range/2)
+    set_3d_axis_ticks(ax, scaled_vertices)
     
-    if cmap is None:
-        ax.scatter(t, x, y, c='gray', alpha=0.5)
-    else:
-        ax.scatter(t, x, y, c=y, cmap=cmap, s=5)
+    ax.scatter(t, x, y, c=COLOR[junc.roi_index], s=point_size, alpha=0.8)
     
+    apply_3d_style(ax)
     return ax
 
 
@@ -75,7 +65,7 @@ def plot_cell_3d(cell: Cell, title=None, ax=None):
     """ Plot the cell in 3D space (t, x, y). """
 
     if ax is None:
-        fig = plt.figure(figsize=(10,8))
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
     else:
         fig = ax.figure
@@ -129,6 +119,7 @@ def plot_cell_3d(cell: Cell, title=None, ax=None):
         t, y, x, rgba = depth_rgba(vertices, color_dict[roi_index])
         ax.scatter(t, x, y, c=rgba, s=0.075)    # Plot y in the z-axis
 
+    apply_3d_style(ax)
     return ax.figure
 
 
@@ -180,7 +171,6 @@ def rotate_to_minimize_y(
 # TODO: Continue work on Fig. 1, migrate 2d plots to seaborn
 def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     """Plot the cell in 3D space (t, x, y) with face normals."""
-    SCALE       = 1e6
     PT_SIZE     = 90
     # colorblind-safe palette for junctions
     palette = sns.color_palette("colorblind", n_colors=4)
@@ -191,11 +181,6 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     FIG_COLOR   = "#FFFFFF"
     AX_COLOR    = "#FFFFFF"
     PANE_COLOR  = "#F3F3F3"
-
-    def scale_xy(arr):
-        out = arr.copy()
-        out[:, 1:] *= SCALE
-        return out
 
     # Prepare data
     vertices_list  = [scale_xy(to_numpy(j.original_vertices)) for j in cell.junctions]
@@ -220,7 +205,7 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
 
     # Plotting
     if ax is None:
-        fig = plt.figure(figsize=(12, 8), facecolor=FIG_COLOR)
+        fig = plt.figure(facecolor=FIG_COLOR)
         ax = fig.add_subplot(111, projection='3d')
     else:
         fig = ax.figure
@@ -268,5 +253,6 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
         }
 
     ax.tick_params(labelsize=20) # Axes3D ignores length and width kwargs
-
+    apply_3d_style(ax)
+    
     return fig

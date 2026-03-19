@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 
-def plot_2d_fft_slope(linreg, ax, scale=None):
+def plot_2d_fft_slope(linreg, ax=None, scale=None):
         
     log_kx = linreg.x
     log_msd = linreg.y
