@@ -121,6 +121,16 @@ def get_files_from_directory(data_dir_path: Path):
     return obj_files
 
 
+def _create_output_dirs(output_dir_path: Path, sample: Sample):
+    cell_dir = output_dir_path / "cells"
+    for cell_index in range(len(sample.cells)):
+        (cell_dir / f"C{cell_index}").mkdir(parents=True, exist_ok=True)
+        for junc in sample.cells[cell_index].junctions:
+            if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
+                (cell_dir / f"C{cell_index}" / f"J{junc.roi_index}").mkdir(parents=True, exist_ok=True)
+    return cell_dir
+
+
 def _load_sample(data_dir_path: Path) -> Sample:
     """Load Sample from .pkl or process .obj files. Saves .pkl if config.save_pickle."""
     files = get_files_from_directory(data_dir_path=data_dir_path)
@@ -159,7 +169,7 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
             if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
                 fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
                 png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
-                fig.savefig(summary_dir / f"C{cell.cell_index}" / png_name)
+                fig.savefig(summary_dir / f"C{cell.cell_index}" / f"J{junc.roi_index}" / png_name)
                 plt.close(fig)
 
 
@@ -179,9 +189,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     logger.info("Starting tflux pipeline")
     logger.info("="*60)
 
-    cell_dir = output_dir_path / "cells"
-    for cell_index in range(len(sample.cells)):
-        (cell_dir / f"C{cell_index}").mkdir(parents=True, exist_ok=True)
+    cell_dir = _create_output_dirs(output_dir_path, sample)
 
     # Only analyze valid junctions
     metrics_csv_path = slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)
@@ -195,7 +203,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
             pngs_to_pdf(
                 input_dir=cell_dir, 
                 output_path=Path(cell_dir / f"{output_dir_path.name}-junc_summaries.pdf"),
-                pattern="*/*summary.png"
+                pattern="*/*/*summary.png"
             )
 
     if config.make_histogram:
@@ -212,7 +220,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
                 # fig = plot_cell_3d(cell=cell, title=cell)
                 fig = plot_cell_3d_with_norms(cell=cell, title=cell)
                 png_name = f'C{cell.cell_index}_render.png'
-                fig.savefig(cell_dir / f"C{cell_index}" / png_name)
+                fig.savefig(cell_dir / f"C{cell.cell_index}" / png_name)
                 plt.close(fig)
             pngs_to_pdf(
                 input_dir=cell_dir, 
