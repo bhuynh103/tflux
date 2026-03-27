@@ -8,12 +8,12 @@ from pathlib import Path
 from datetime import datetime
 
 # Pipeline Settings
-data_dir_path: Path = Path("data/raw/all-data/WT")
+data_dir_path: Path = Path("data/raw/temp/WT")
 save_pickle: bool = True
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE = f"logs/tflux_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-make_pdfs = True
-save_average_slope_csv = True
+make_pdfs = False
+save_average_slope_csv = False
 make_junc_summary = True
 include_bad_junctions_in_summary = False
 make_histogram = False
@@ -23,7 +23,7 @@ save_config = True
 
 
 # k-means hyperparams
-K_MEANS: int = 4
+K_MEANS: int = 3
 K_MEANS_ITER: int = 40
 SMOOTH_ITER: int = 3    # Lower for better performace
 LAMBDA: float = 0.9

@@ -222,7 +222,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
             for cell in sample.cells:
                 fig = plot_cell_3d_with_norms(cell=cell, title=cell)
                 png_name = f'C{cell.cell_index}_render.png'
-                fig.savefig(cell_dir / f"C{cell.cell_index}" / png_name)
+                fig.savefig(cell_dir / f"C{cell.cell_index}" / png_name, transparent=True)
                 plt.close(fig)
             if config.make_pdfs:
                 pngs_to_pdf(

@@ -151,7 +151,7 @@ def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes
         if id(fig) not in seen_figs:
             seen_figs.add(id(fig))
             png_name = f'C{junc.cell_index}-J{junc.roi_index}_{letter}_summary.png'
-            fig.savefig(out_subdir / png_name)
+            fig.savefig(out_subdir / png_name, transparent=True)
     plt.close('all')
 
     return axs
