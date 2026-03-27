@@ -130,7 +130,8 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
 def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes]:
     axs = []
     axs.append(points.plot_junc_3d(junc)) # TODO: Add letter for plot at top left corner
-    axs.append(grids.plot_xt_surface(junc.grid))
+    axs.append(grids.plot_xt_surface(junc))
+    axs.append(grids.plot_qw_surface(junc))
     axs.append(fft.plot_3d_fft(junc.mesh, log=True, log_residuals=False, include_best_fit=True))
     axs.extend(fft.plot_fft_vs_q_omega(junc.fft.z_tilde))
     axs.append(reg.plot_2d_fft_slope(junc.linreg_w))
@@ -142,7 +143,7 @@ def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes
     logger.debug(axs)
 
     out_subdir = output_dir / f"C{junc.cell_index}" / f"J{junc.roi_index}"
-    letters = 'abc' # 'abcdefghijkl'
+    letters = 'abcdefghijkl' # 'abcdefghijkl'
     
     seen_figs = set()
     for ax, letter in zip(axs, letters):

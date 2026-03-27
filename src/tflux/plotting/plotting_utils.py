@@ -6,9 +6,11 @@ import matplotlib.colors as mcolors
 import seaborn as sns
 
 
-palette = sns.color_palette("hls", n_colors=4)
-COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i])      for i in range(4)}}
+palette = sns.color_palette("bright", n_colors=4)
+COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i]) for i in range(4)}}
+COLOR      = {-1: "#919191", 0: "#FF0000", 1: "#009000", 2: "#3939FF", 3: "#FF7F00"}   
 PT_SIZE    = 90
+ZOOM       = 1.25
 
 
 def scale_xy(arr):

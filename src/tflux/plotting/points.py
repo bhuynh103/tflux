@@ -9,7 +9,7 @@ from tflux.plotting.axes import _ensure_ax_3d
 from tflux.dtypes import Cell, Junction
 from tflux.plotting.rcparams import apply_3d_style
 from tflux.utils.logging import get_logger
-from tflux.plotting.plotting_utils import COLOR, PT_SIZE, scale_xy, set_3d_axis_ticks
+from tflux.plotting.plotting_utils import COLOR, PT_SIZE, ZOOM, scale_xy, set_3d_axis_ticks
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ def plot_junc_3d(junc: Junction, title=None, ax=None):
     
     scaled_vertices = scale_xy(to_numpy(junc.vertices))
     t, y, x = scaled_vertices[:, 0], scaled_vertices[:, 1], scaled_vertices[:, 2]
-    point_size = PT_SIZE / len(scaled_vertices)
+    point_size = PT_SIZE * (ZOOM ** 2) / len(scaled_vertices)
 
     if ax is None:
         fig = plt.figure()
@@ -46,12 +46,14 @@ def plot_junc_3d(junc: Junction, title=None, ax=None):
         ax = _ensure_ax_3d(ax, fig)
 
     # Labels and title
-    ax.set_box_aspect(None, zoom=1.0)
-    ax.view_init(elev=20, azim=-45, roll=0)
+    ax.set_box_aspect(None, zoom=ZOOM)
+    ax.view_init(elev=30, azim=-45, roll=0)
     ax.set_xlabel("T (s)")
     ax.set_ylabel(u"X (μm)")
     ax.set_zlabel(u"Y (μm)", labelpad=15)
     ax.set_title(f"{title}")
+
+    ax.set_axis_off()  # Hide axes for cleaner look, can be toggled on if needed
     
     set_3d_axis_ticks(ax, scaled_vertices)
     
@@ -59,68 +61,6 @@ def plot_junc_3d(junc: Junction, title=None, ax=None):
     
     apply_3d_style(ax)
     return ax
-
-
-def plot_cell_3d(cell: Cell, title=None, ax=None):
-    """ Plot the cell in 3D space (t, x, y). """
-
-    if ax is None:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-    else:
-        fig = ax.figure
-        ax = _ensure_ax_3d(ax, fig)
-
-    # Labels and title
-    ax.set_xlabel("T (s)")
-    ax.set_ylabel(u"Y (μm)")
-    ax.set_zlabel(u"X (μm)")
-    ax.set_title(f"{title}")
-    ax.set_box_aspect(None, zoom=1)
-
-    # y_mid = (max(y) + min(y)) / 2
-    # x_range = max(x) - min(x)
-    # ax.set_zlim(y_mid - x_range/2, y_mid + x_range/2)
-
-    color_dict = {
-        -1: "#919191",
-        0: "#ff0000",
-        1: "#0055ff",
-        2: "#00ff00",
-        3: "#5500ff",
-    }
-
-    vertices_list = [junc.original_vertices for junc in cell.junctions]
-    roi_indices = [junc.roi_index for junc in cell.junctions]
-
-    # Collect all points to compute global depth range
-    all_points = np.vstack([v for v in vertices_list])
-    a, b, c = 1.0, 10.0, 10.0
-    base_brightness = 0.2
-    all_t = all_points[:, 0]
-    all_y = all_points[:, 1] * 1e6
-    all_x = all_points[:, 2] * 1e6
-    depth_all = a * all_t + b * all_y + c * all_x          # proxy for view depth
-    d_min, d_max = depth_all.min(), depth_all.max()
-
-    def depth_rgba(vertices, base_color):
-        t, y, x = vertices[:, 0], vertices[:, 1] * 1e6, vertices[:, 2] * 1e6
-        depth = a * t + b * y + c * x
-        # Normalize depth so that far points are dim (0.0), near points bright (1.0)
-        brightness = base_brightness + (1 - base_brightness) * (depth - d_min) / (d_max - d_min + 1e-9)
-        rgb = np.array(to_rgb(base_color))
-        rgba = np.ones((len(t), 4))
-        rgba[:, :3] = rgb * brightness[:, None]
-        rgba[:, 3] = 1.0   # fixed alpha
-        rgba = np.clip(rgba, 0, 1)
-        return t, y, x, rgba
-
-    for vertices, roi_index in zip(vertices_list, roi_indices):
-        t, y, x, rgba = depth_rgba(vertices, color_dict[roi_index])
-        ax.scatter(t, x, y, c=rgba, s=0.075)    # Plot y in the z-axis
-
-    apply_3d_style(ax)
-    return ax.figure
 
 
 def rotate_to_minimize_y(
@@ -171,13 +111,12 @@ def rotate_to_minimize_y(
 # TODO: Continue work on Fig. 1, migrate 2d plots to seaborn
 def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     """Plot the cell in 3D space (t, x, y) with face normals."""
-    PT_SIZE     = 90
     # colorblind-safe palette for junctions
-    palette = sns.color_palette("colorblind", n_colors=4)
+    palette = sns.color_palette("bright", n_colors=4)
     norm_palette = [sns.desaturate(c, 0.7) for c in palette]  # softer for norms
 
-    COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i])      for i in range(4)}}
-    NORM_COLOR = {-1: "#919191", **{i: mcolors.to_hex(norm_palette[i]) for i in range(4)}}
+    # COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i])      for i in range(3)}}
+    # NORM_COLOR = {-1: "#919191", **{i: mcolors.to_hex(norm_palette[i]) for i in range(4)}}
     FIG_COLOR   = "#FFFFFF"
     AX_COLOR    = "#FFFFFF"
     PANE_COLOR  = "#F3F3F3"
@@ -211,7 +150,7 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
         fig = ax.figure
         ax = _ensure_ax_3d(ax, fig)
 
-    point_size = PT_SIZE / len(all_pts)
+    point_size = PT_SIZE * (ZOOM ** 2) / len(all_pts)
     for verts, centroids, norms, roi in zip(vertices_rot, centroids_rot, norms_rot, roi_indices):
         t, y, x = verts[:, 0], verts[:, 1], verts[:, 2]
         ax.scatter(t, x, y, c=COLOR[roi], s=point_size)
@@ -222,11 +161,11 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
         nt, ny, nx = norms[mid, 0],     norms[mid, 1],     norms[mid, 2]
         ax.quiver(ct, cx, cy, nt, nx, ny,
                   length=graph_range * 0.25, normalize=True,
-                  color=NORM_COLOR[roi], linewidth=2.0,
+                  color=COLOR[roi], linewidth=2.0,
                   alpha=1.0, arrow_length_ratio=0.3)
 
-    ax.view_init(elev=20, azim=-45, roll=0)
-    ax.set_box_aspect(None, zoom=0.85)
+    ax.view_init(elev=30, azim=-45, roll=0)
+    ax.set_box_aspect(None, zoom=ZOOM)
     ax.set_facecolor(AX_COLOR)
     ax.set_title(title,      fontsize=18, pad=20)
     ax.set_xlabel("T (s)",   fontsize=24)
@@ -242,6 +181,8 @@ def plot_cell_3d_with_norms(cell: Cell, title=None, ax=None):
     ax.xaxis.set_pane_color(PANE_COLOR)
     ax.yaxis.set_pane_color(PANE_COLOR)
     ax.zaxis.set_pane_color(PANE_COLOR)
+
+    ax.set_axis_off()  # Hide axes for cleaner look, can be toggled on if needed
 
     # Cursed Axes3D tick_params workaround, changes defaults from dict in axis3d.py
     for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:

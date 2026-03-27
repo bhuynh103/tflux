@@ -4,10 +4,10 @@ from mpl_toolkits.mplot3d import Axes3D
 BASE_PARAMS = {
     'font.family': 'Arial',
     'font.size': 14,
-    'axes.labelsize': 16,
+    'axes.labelsize': 32,
     'axes.titlesize': 18,
-    'xtick.labelsize': 20,
-    'ytick.labelsize': 20,
+    'xtick.labelsize': 32,
+    'ytick.labelsize': 32,
     'figure.figsize': (8, 6),
     'figure.dpi': 300,
     'savefig.dpi': 300,
