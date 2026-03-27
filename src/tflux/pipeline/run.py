@@ -13,7 +13,7 @@ import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.preprocessing.kmean_norms as kmean_norms
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
-from tflux.plotting.points import plot_cell_3d, plot_cell_3d_with_norms
+from tflux.plotting.points import plot_cell_3d_with_norms
 from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms
 from tflux.dtypes import Sample, Cell, Junction, GridFFT, Grid, Mesh, LinReg
 from tflux.utils.logging import get_logger
@@ -92,7 +92,7 @@ def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
     )
 
     for junc in cell.junctions:
-        clean_junction(junc=junc)
+        junc =clean_junction(junc=junc)
         label_junction(junc=junc, cell=cell, sample=sample)
 
     sample.append_cell(cell=cell)
@@ -141,6 +141,7 @@ def _load_sample(data_dir_path: Path) -> Sample:
             return pickle.load(f)
     
     sample = process_files(files)
+
     if config.save_pickle:
         pkl_out = data_dir_path / "sample.pkl"
         with open(pkl_out, "wb") as f:
@@ -171,7 +172,6 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
                 # png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
                 # fig.savefig(summary_dir / f"C{cell.cell_index}" / f"J{junc.roi_index}" / png_name)
                 # plt.close(fig)
-
                 plot_junction_summary_3x3(junc=junc, output_dir=summary_dir)
 
 
@@ -202,6 +202,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     if config.make_junc_summary:
         with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
             summarize_sample_junctions(summary_dir=cell_dir, sample=sample)
+            # plot_junction_summary_3x3(junc=sample.cells[0].junctions[0], output_dir=cell_dir)  # Debug
             if config.make_pdfs:
                 pngs_to_pdf(
                     input_dir=cell_dir, 
@@ -219,7 +220,6 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     if config.save_cells:
         with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
             for cell in sample.cells:
-                # fig = plot_cell_3d(cell=cell, title=cell)
                 fig = plot_cell_3d_with_norms(cell=cell, title=cell)
                 png_name = f'C{cell.cell_index}_render.png'
                 fig.savefig(cell_dir / f"C{cell.cell_index}" / png_name)

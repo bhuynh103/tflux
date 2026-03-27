@@ -66,8 +66,8 @@ def find_best_orientation(vertices: np.ndarray) -> np.ndarray:  #(vertices: np.n
     min_y_range = float('inf')
     best_rotated_vertices = None
 
-    # Iterate over angles from 0 to 360 degrees in 1-degree steps
-    for angle in range(0, 360, 1):
+    # Iterate over angles from -90 to 90 degrees in 1-degree steps
+    for angle in range(-90, 90, 1):
         rotated_vertices = rotate(centralized_vertices, angle)
         y_range = rotated_vertices[:, 1].max() - rotated_vertices[:, 1].min()  # Compute the range of y
 
@@ -75,18 +75,6 @@ def find_best_orientation(vertices: np.ndarray) -> np.ndarray:  #(vertices: np.n
             min_y_range = y_range
             best_angle = angle
             best_rotated_vertices = rotated_vertices
-
-    # best_y_sum = 0
-    # best_angle = None
-
-    # for angle in range(0, 360, 1):
-    #     rotated_normals = rotate(normals, angle)
-    #     y_sum = np.abs(rotated_normals[:, 1]).sum()  # Compute the sum of y components of the normals
-
-    #     if y_sum > best_y_sum:
-    #         best_y_sum = y_sum
-    #         best_angle = angle
-    #         best_rotated_vertices = rotate(centralized_vertices, best_angle)
         
     return best_rotated_vertices
 

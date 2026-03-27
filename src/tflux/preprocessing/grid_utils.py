@@ -16,12 +16,8 @@ logger = get_logger(__name__)
 # Gridding
 def grid_xt(junc: Junction) -> Grid:
     vertices: np.ndarray = junc.vertices
-    is_top: bool = junc.is_top
     
-    if is_top:
-        t, y, x = vertices[:, 0], vertices[:, 1], vertices[:, 2]
-    else:
-        t, y, x = vertices[:, 0], vertices[:, 1] * -1, vertices[:, 2]
+    t, y, x = vertices[:, 0], vertices[:, 1], vertices[:, 2]
     
     x_range: float = max(vertices[:, 2]) - min(vertices[:, 2])
     t_range: float = max(vertices[:, 0]) - min(vertices[:, 0])
