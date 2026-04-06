@@ -57,3 +57,15 @@ def letter_annotation(ax, xoffset, yoffset, letter):
                        transform=ax.figure.transFigure)
     except AttributeError:
         ax.text(xoffset, yoffset, letter, transform=ax.transAxes, size=12, weight='bold')
+
+
+def set_3d_axis_ticksize(ax: Axes3D):
+    # Cursed Axes3D tick_params workaround, changes defaults from dict in axis3d.py
+    for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
+        axis._axinfo['tick']['outward_factor'] = 0.3  # default 0.1
+        axis._axinfo['tick']['inward_factor']  = 0.3  # default 0.2
+        axis._axinfo['tick']['linewidth'] = {
+            True:  2.0,  # major ticks
+            False: 1.0,  # minor ticks
+        }
+    return ax

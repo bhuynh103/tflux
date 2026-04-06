@@ -9,6 +9,8 @@ BASE_PARAMS = {
     'xtick.labelsize': 32,
     'ytick.labelsize': 32,
     'figure.figsize': (8, 6),
+    'legend.fontsize': 16,
+    'legend.title_fontsize': 18,
     'figure.dpi': 300,
     'savefig.dpi': 300,
     'figure.constrained_layout.use': True

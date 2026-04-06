@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 from tflux.pipeline import config
 from tflux.plotting.axes import _ensure_ax_3d
 from tflux.dtypes import Mesh
 from tflux.plotting.rcparams import apply_3d_style
+from tflux.plotting.plotting_utils import set_3d_axis_ticksize
 
 def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):
     
@@ -31,14 +33,14 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
         x,
         y,
         z,
-        cmap=config.cmap2, edgecolor='none', alpha=0.8
+        cmap='Oranges', edgecolor='none', alpha=0.95
     )
         
     # Optionally plot the fitted plane
     if include_best_fit:
         # Create a coarse grid in (x, y) over the data range
-        x_min, x_max = x.min(), x.max()
-        y_min, y_max = y.min(), y.max()
+        x_min, x_max = x.min() - 0.25, x.max()
+        y_min, y_max = y.min() - 0.1, y.max()
         Xp, Yp = np.meshgrid(
             np.linspace(x_min, x_max, 30),
             np.linspace(y_min, y_max, 30),
@@ -52,12 +54,31 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
         )
     
     # Labels and title
-    ax.set_xlabel("log q (1/m)")
-    ax.set_ylabel("log omega (1/s)")
-    ax.set_zlabel(r"log amp^2 ($m^4$)")
-    ax.set_box_aspect(None, zoom=1)
+    ax.tick_params(axis='x', pad=15)
+    ax.tick_params(axis='y', pad=7.5)
+    ax.tick_params(axis='z', pad=15)
+    ax.set_xlabel(r"q ($m^{-1}$)", labelpad=15)
+    ax.set_ylabel(r"$\omega$ ($s^{-1}$)", labelpad=15)
+    ax.set_zlabel(r"$\langle | u^{2} | \rangle$ ($m^4$)", labelpad=30)
+    ax.set_box_aspect(None, zoom=0.85)
+
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.grid(False)
+
+    # tick_locations = [1, 2, 3] # Corresponding to 10^1, 10^2, 10^3 in log10 space
+    # ax.set_zticks(tick_locations)
+    formatter = ticker.FuncFormatter(lambda x, pos: f'$10^{{{int(x)}}}$')
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.zaxis.set_major_formatter(formatter)
+    ax.xaxis.set_major_locator(ticker.FixedLocator([4, 6]))
+    ax.yaxis.set_major_locator(ticker.FixedLocator([-3, -1]))
+    ax.zaxis.set_major_locator(ticker.MaxNLocator(nbins=3, steps=[2, 4, 5], integer=True))
     
     apply_3d_style(ax)
+    ax = set_3d_axis_ticksize(ax=ax)
     return ax
 
 
