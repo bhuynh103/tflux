@@ -29,9 +29,11 @@ def plot_2d_fft_slope(linreg: LinReg, ax=None, scale=None):
         match linreg.xlabel:
             case 'q':
                 ax.set_xlabel(r"$q \; (m^{-1})$")
+                ax.set_ylabel(r"$\langle |\tilde{u}^2| \rangle_\omega \; (m^4 s^2)$")
             case 'w':
                 ax.set_xlabel(r"$\omega \; (s^{-1})$")
-        ax.set_ylabel(r"$\langle |\tilde{u}^2| \rangle \; (m^4 s^2)$")
+                ax.set_ylabel(r"$\langle |\tilde{u}^2| \rangle_q \; (m^4 s^2)$")
+
     ax.grid(True, which="both", linestyle="--", linewidth=0.5)
     ax.text(
         0.95, 0.95,

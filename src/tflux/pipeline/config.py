@@ -8,17 +8,20 @@ from pathlib import Path
 from datetime import datetime
 
 # Pipeline Settings
-data_dir_path: Path = Path("data/raw/temp/WT")
+sample_WT_dir_path: Path = Path("data/raw/all-data/WT")
+sample_a_dir_path: Path = Path("data/raw/all-data/LatB/control")
+sample_b_dir_path: Path = Path("data/raw/all-data/LatB/experimental")
 save_pickle: bool = True
 LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE = f"logs/tflux_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 make_pdfs = False
 save_average_slope_csv = False
-make_junc_summary = True
+make_junc_summary = False
 include_bad_junctions_in_summary = False
-make_histogram = False
-remake_histograms = False
-save_cells = True
+make_histogram = True
+make_comparison_histogram = True
+remake_histograms = True
+save_cells = False
 save_config = True
 
 

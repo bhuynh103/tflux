@@ -41,7 +41,7 @@ def plot_xt_surface(junc: Junction, ax=None):
 
 
 def plot_xt_surface_projected(junc: Junction, over=None, ax=None):
-
+    # TODO: Consider splitting up this function
     grid: Grid = junc.grid
     surface = grid.z
     cmap_ax1 = mcolors.LinearSegmentedColormap.from_list(
@@ -52,11 +52,9 @@ def plot_xt_surface_projected(junc: Junction, over=None, ax=None):
     )
         
     shape = surface.shape # (x, t)
-    if over == 'x':
-        length = shape[0]
-    elif over == 't':
-        length = shape[1]
-    
+    x_length = shape[0]
+    t_length = shape[1]
+
     surface_scaled = surface * 1e6
     dim_range = grid.get_grid_range(over)
     if over == 'x':
@@ -66,10 +64,12 @@ def plot_xt_surface_projected(junc: Junction, over=None, ax=None):
         fig, ax = plt.subplots()
     else:
         fig = ax.figure
-    dim = np.linspace(0, dim_range, length)
+
     if over == 'x':
-        indices = range(0, 200, 50)
+        dim = np.linspace(0, dim_range, x_length)
+        indices = range(0, 3*(t_length//5), t_length//5)
         for k, i in enumerate(indices):
+            print(i)
             t = k / (len(indices) - 1)
             ax.plot(
                 dim,
@@ -81,8 +81,11 @@ def plot_xt_surface_projected(junc: Junction, over=None, ax=None):
         ax.set_ylabel(u'Y (μm)', labelpad=0)
         ax.legend(title='Time (s)', loc='upper left')
     elif over == 't':
-        indices = range(0, 100, 25)
+        dim = np.linspace(0, dim_range, t_length)
+        indices = range(0, 3*(x_length//5), x_length//5)
         for k, i in enumerate(indices):
+            print(i)
+            print(surface_scaled.shape)
             t = k / (len(indices) - 1)
             ax.plot(
                 dim,

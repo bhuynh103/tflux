@@ -6,28 +6,30 @@ Created on Wed Dec 11 00:33:25 2024
 
 @author: Brain Huynh
 """
+import matplotlib.pyplot as plt
 from codetiming import Timer
 from tflux.utils.logging import get_logger
 
 from pathlib import Path
 from tflux.pipeline import config, run
 from tflux.io import paths
-from tflux.plotting.sample_slope_hist import plot_all_gradient_histograms
+from tflux.plotting.sample_slope_hist import compare_linreg_fits, compare_linreg_hists
 
 logger = get_logger(__name__)
 
 def main():
     "TODO: Add CLI function to clear outputs folder"
-    # Default output path: tflux/outputs/<date_and_index>/
-    # If data_dir is None, check tflux/data/raw/temp/WT as default for .obj files, otherwise error
     logger.info("Preparing I/O paths...")
-    data_dir_path, output_dir_path = paths.prepare_io(
-        set_data_dir_path=config.data_dir_path, 
-        set_output_dir_path=None
-    )
 
-    logger.info(f"  Data dir:   {data_dir_path}")
-    logger.info(f"  Output dir: {output_dir_path}")
+    # Define your data sources
+    my_data = {
+        "WT": Path(config.sample_WT_dir_path),
+        "Control": Path(config.sample_a_dir_path),
+        "Experimental": Path(config.sample_b_dir_path)
+    }
+
+    # Initialize IO
+    input_dirs, output_dir = paths.prepare_io(data_paths=my_data)
     response = input("Proceed? [y/N]: ").strip().lower()
     if response != "y":
         logger.info("Aborted.")
@@ -35,17 +37,30 @@ def main():
 
     # Save config to .txt
     if config.save_config:
-        with open(Path("src/tflux/pipeline/config.py"), "r") as src, open(output_dir_path / "config.txt", "w") as out:
+        with open(Path("src/tflux/pipeline/config.py"), "r") as src, open(output_dir / "config.txt", "w") as out:
             out.writelines(src.readlines())
     
-    # Using this function requires preprocessed csv files, running pipeline is not needed.
-    if config.remake_histograms:
-        plot_all_gradient_histograms(csv_path_list=config.CSV_PATHS, output_dir=output_dir_path)
-        return 0
     
     # Process sample from data dir, create metrics.csv, junction summaries, and histograms
     with Timer(text="Pipeline: {:.3f}s", logger=logger.info):
-        run.run_pipeline(data_dir_path=data_dir_path, output_dir_path=output_dir_path, sample_label="WT_temp")   # Save slope data to metrics.csv
+        sample_WT = run.run_pipeline(data_dir_path=input_dirs["WT"], output_dir_path=output_dir, sample_label="WT")
+
+        if config.make_comparison_histogram:
+            sample_a = run.run_pipeline(data_dir_path=input_dirs["Control"], output_dir_path=output_dir, sample_label="control")
+            sample_b = run.run_pipeline(data_dir_path=input_dirs["Experimental"], output_dir_path=output_dir, sample_label="experimental")
+
+            comparison_dir = output_dir / "comparisons"
+
+            fig_hist = compare_linreg_hists(sample_a=sample_a, sample_b=sample_b)
+            png_name = f'hist_comparison.png'
+            fig_hist.savefig(comparison_dir / png_name)
+            plt.close(fig_hist)
+
+            fig_fit = compare_linreg_fits(sample_a=sample_a, sample_b=sample_b)
+            png_name = f'fit_comparison.png'
+            fig_fit.savefig(comparison_dir / png_name)
+            plt.close(fig_fit)
+
     
     return 0
 

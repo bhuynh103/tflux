@@ -127,7 +127,7 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
     return fig
 
 
-def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes]:
+def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes]:  # Overloading the first 3x3 function
     logger.debug(f"Ranges | T: {junc.get_range('t')} s, X: {junc.get_range('x') * 1e6} um")
     axs = []
     axs.append(points.plot_junc_3d(junc))   # C

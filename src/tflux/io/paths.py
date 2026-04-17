@@ -23,61 +23,89 @@ def find_root() -> Path:
     return project_root
 
 
-def get_default_data_dir() -> Path:
-
-    root_path: Path = find_root()
-
-        # --- default data directory ---
-    data_dir = root_path / "data" / "raw" / "temp" / "WT"
-
-    if not data_dir.exists():
-        raise FileNotFoundError(f"Data directory not found: {data_dir}")
+def make_output_dir(sample_labels: list[str]) -> Path:
+    """
+    Creates a unique run directory with sample-specific subdirectories.
     
-    return data_dir
-
-
-def make_output_dir(subdir_list: list[str]) -> Path:
-
+    Structure:
+    outputs/YYYY-MM-DD_NNN/
+    ├── comparisons/
+    ├── Sample_A/
+    │   ├── histograms/
+    │   └── cells/
+    └── Sample_B/ ...
+    """
     root_path: Path = find_root()
-
     outputs_dir = root_path / "outputs" 
-
-    # If tflux/outputs doesn't exist
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
     date_str = datetime.now().strftime('%Y-%m-%d')
-
     run_number = 1
 
-    # Find next available run number
     while True:
         dir_name = f"{date_str}_{run_number:03d}"
-        new_dir = outputs_dir / dir_name
+        run_dir = outputs_dir / dir_name
         
-        if not new_dir.exists():
-            new_dir.mkdir(parents=True, exist_ok=True)
-            for subdir in subdir_list:
-                (new_dir / subdir).mkdir()
-            return new_dir
+        if not run_dir.exists():
+            run_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 1. Create the global comparisons folder
+            (run_dir / "comparisons").mkdir(exist_ok=True)
+            
+            # 2. Create nested folders for each sample label
+            for label in sample_labels:
+                sample_folder = run_dir / label
+                sample_folder.mkdir()
+                
+                # Standard sub-folders within each sample
+                (sample_folder / "histograms").mkdir()
+                (sample_folder / "cells").mkdir()
+                
+            return run_dir
         
         run_number += 1
 
 
-def prepare_io(set_data_dir_path: Path = None, set_output_dir_path: Path = None, include_root = False) -> Path:
+def prepare_io(
+    data_paths: dict[str, Path], 
+    set_output_dir_path: Path = None
+) -> tuple[dict[str, Path], Path]:
+    """
+    Prepares input/output paths for multiple samples.
+    
+    Parameters
+    ----------
+    data_paths : dict
+        A mapping of labels to paths, e.g., 
+        {"WT": Path("..."), "Control": Path("..."), "Exp": Path("...")}
+    set_output_dir_path : Path, optional
+        The root directory for all outputs.
 
-    data_dir_path = set_data_dir_path
-    output_dir_path = set_data_dir_path
+    Returns
+    -------
+    resolved_inputs : dict
+        Dictionary with resolved absolute Paths.
+    output_root : Path
+        Resolved absolute Path to the output directory.
+    """
     
-    if set_data_dir_path is None:
-        data_dir_path = get_default_data_dir()  # Only works with expected file structure, otherwise error
-    
+    # 1. Resolve Output Directory
     if set_output_dir_path is None:
-        output_dir_path = make_output_dir(subdir_list=["histograms", "cells"]) # creates junction_summaries subdirectory as well
+        # Assuming make_output_dir handles the directory creation logic
+        output_root = make_output_dir(sample_labels=list(data_paths.keys()))
+    else:
+        output_root = set_output_dir_path
+    
+    output_root = output_root.resolve()
 
-    data_dir_path = data_dir_path.resolve()
-    output_dir_path = output_dir_path.resolve()
+    # 2. Resolve Input Directories
+    resolved_inputs = {}
+    for label, path in data_paths.items():
+        if not path.exists():
+            raise FileNotFoundError(f"Input path for {label} does not exist: {path}")
+        resolved_inputs[label] = path.resolve()
 
-    return data_dir_path, output_dir_path
+    return resolved_inputs, output_root
 
 
 def get_directories_in_path(path) -> list[Path]:

@@ -14,7 +14,7 @@ import tflux.preprocessing.kmean_norms as kmean_norms
 import tflux.analysis.slope_analyzer as slope_analyzer
 from tflux.plotting.junction_summary import plot_junction_summary_3x3
 from tflux.plotting.points import plot_cell_3d_with_norms
-from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms
+from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms, plot_linreg_fits, plot_linreg_hist
 from tflux.dtypes import Sample, Cell, Junction, GridFFT, Grid, Mesh, LinReg
 from tflux.utils.logging import get_logger
 
@@ -176,7 +176,7 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
 
 
 ### PIPELINE START ###
-def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str = None) -> Sample:
+def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str = None) -> Sample: # output_dir_path is root of output dir, must enter sample_label subdir
 
     if not data_dir_path.exists() or not data_dir_path.is_dir():
         raise NotADirectoryError(f"Directory not found: {data_dir_path}")
@@ -191,6 +191,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     logger.info("Starting tflux pipeline")
     logger.info("="*60)
 
+    output_dir_path = output_dir_path / sample_label
     cell_dir = _create_output_dirs(output_dir_path, sample)
 
     # Only analyze valid junctions
@@ -212,7 +213,18 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
 
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
-        fig = plot_gradient_histograms(csv_path=metrics_csv_path, title=data_dir_path) 
+
+        # fig = plot_gradient_histograms(csv_path=metrics_csv_path, title=data_dir_path) 
+        # png_name = f'{sample_label}_hist.png'
+        # fig.savefig(hist_dir / png_name)
+        # plt.close(fig)
+
+        fig = plot_linreg_fits(sample)
+        png_name = f'{sample_label}_linreg.png'
+        fig.savefig(hist_dir / png_name)
+        plt.close(fig)
+
+        fig = plot_linreg_hist(sample)
         png_name = f'{sample_label}_hist.png'
         fig.savefig(hist_dir / png_name)
         plt.close(fig)
