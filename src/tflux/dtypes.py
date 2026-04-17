@@ -21,11 +21,22 @@ class Junction:
         self.mesh: Mesh | None = None
         self.linreg_q: LinReg | None = None
         self.linreg_w: LinReg | None = None
+        self.x_range: float | None = None
+        self.t_range: float | None = None
 
     
     def __str__(self):
         return f"Cell {self.cell_index}, Junction {self.roi_index}: {self.source_file.stem}"
 
+
+    def get_range(self, dim: str):
+        match dim:
+            case 'x':
+                return self.x_range
+            case 't':
+                return self.t_range
+            case _:
+                raise ValueError("Dimension arg must be x or t.")
 
 class Cell:
     def __init__(self, source_file: Path, cell_index: int) -> None:

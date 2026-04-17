@@ -3,6 +3,7 @@ from matplotlib.ticker import FixedLocator
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.ticker as ticker
 import seaborn as sns
 
 
@@ -11,6 +12,30 @@ COLOR      = {-1: "#919191", **{i: mcolors.to_hex(palette[i]) for i in range(4)}
 COLOR      = {-1: "#919191", 0: "#FF0000", 1: "#009000", 2: "#3939FF", 3: "#FF7F00"}   
 PT_SIZE    = 90
 ZOOM       = 1.25
+
+
+class MinMaxFormatter(ticker.Formatter):
+    def __call__(self, x, pos=None):
+        if x == 0:
+            return "$0$"
+        exp = int(np.round(np.log10(abs(x))))
+        return f"$10^{{{exp}}}$"
+
+
+class MinMaxLocator(ticker.Locator):
+    def __init__(self, vmin: float, vmax: float):
+        self._vmin = min(vmin, vmax)
+        self._vmax = max(vmin, vmax)
+
+    def __call__(self):
+        return self.tick_values(self._vmin, self._vmax)
+
+    def tick_values(self, vmin, vmax):
+        vmax_rounded = 10 ** np.floor(np.log10(abs(self._vmax)))
+        vmin_rounded = vmax_rounded / 10
+        if vmin_rounded >= vmax_rounded:
+            vmin_rounded = vmax_rounded / 10
+        return np.array(sorted([vmin_rounded, vmax_rounded]))
 
 
 def scale_xy(arr):

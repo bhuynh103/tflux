@@ -19,12 +19,13 @@ def grid_xt(junc: Junction) -> Grid:
     
     t, y, x = vertices[:, 0], vertices[:, 1], vertices[:, 2]
     
-    x_range: float = max(vertices[:, 2]) - min(vertices[:, 2])
-    t_range: float = max(vertices[:, 0]) - min(vertices[:, 0])
+    # Set ranges here since grid_xt is called after cleaning the junction.
+    junc.x_range = max(vertices[:, 2]) - min(vertices[:, 2])
+    junc.t_range = max(vertices[:, 0]) - min(vertices[:, 0])
     
     # Dynamnically assign a grid size based on the cell length and sampling duration
-    grid_size_x: int = int(x_range / config.dx) # x_range: 40 to 60 um, 200 to 300 pixel, dx = 0.205 um/pixel
-    grid_size_t: int = int(t_range / config.dt)
+    grid_size_x: int = int(junc.x_range / config.dx) # x_range: 40 to 60 um, 200 to 300 pixel, dx = 0.205 um/pixel
+    grid_size_t: int = int(junc.t_range / config.dt)
     
     # Construct bins and grids
     x_bins = np.linspace(min(x), max(x), grid_size_x)

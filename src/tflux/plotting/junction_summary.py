@@ -128,24 +128,25 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
 
 
 def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes]:
+    logger.debug(f"Ranges | T: {junc.get_range('t')} s, X: {junc.get_range('x') * 1e6} um")
     axs = []
-    axs.append(points.plot_junc_3d(junc)) # TODO: Add letter for plot at top left corner
-    axs.append(grids.plot_xt_surface(junc))
-    axs.append(grids.plot_xt_surface_projected(junc, over='x'))
-    axs.append(grids.plot_xt_surface_projected(junc, over='t'))
-    axs.append(grids.plot_qw_surface(junc))
-    axs.append(fft.plot_3d_fft(junc.mesh, log=True, log_residuals=False, include_best_fit=True))
-    axs.extend(fft.plot_fft_vs_q_omega(junc.fft.z_tilde))
-    axs.append(reg.plot_2d_fft_slope(junc.linreg_w))
-    axs.append(reg.plot_2d_fft_slope(junc.linreg_q))
-    axs.extend(fft.plot_fft_vs_q_omega(junc.fft.z_tilde, scale='log'))
-    axs.append(reg.plot_2d_fft_slope(junc.linreg_w, scale='log'))
-    axs.append(reg.plot_2d_fft_slope(junc.linreg_q, scale='log'))
+    axs.append(points.plot_junc_3d(junc))   # C
+    axs.append(grids.plot_xt_surface(junc)) # D
+    axs.append(grids.plot_xt_surface_projected(junc, over='x')) # E
+    axs.append(grids.plot_xt_surface_projected(junc, over='t')) # F
+    axs.append(fft.plot_3d_fft(junc.mesh, log=True, log_residuals=False, include_best_fit=True)) # G
+    # axs.extend(fft.plot_fft_vs_q_omega(junc.fft.z_tilde))
+    # axs.append(reg.plot_2d_fft_slope(junc.linreg_q))
+    # axs.append(reg.plot_2d_fft_slope(junc.linreg_w))
+    axs.extend(fft.plot_fft_vs_q_omega(junc.fft, scale='log'))  # H, I
+    axs.append(reg.plot_2d_fft_slope(junc.linreg_w, scale='log'))       # J
+    axs.append(reg.plot_2d_fft_slope(junc.linreg_q, scale='log'))       # K
+    # axs.append(grids.plot_qw_surface(junc))
 
     logger.debug(axs)
 
     out_subdir = output_dir / f"C{junc.cell_index}" / f"J{junc.roi_index}"
-    letters = 'abcdefghijkl' # 'abcdefghijkl'
+    letters = 'cdefghijkl' # 'abcdefghijkl'
     
     seen_figs = set()
     for ax, letter in zip(axs, letters):

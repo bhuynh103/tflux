@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import matplotlib.colors as mcolors
 import numpy as np
 import seaborn as sns
 from tflux.dtypes import Grid, GridFFT, Junction
@@ -43,6 +44,12 @@ def plot_xt_surface_projected(junc: Junction, over=None, ax=None):
 
     grid: Grid = junc.grid
     surface = grid.z
+    cmap_ax1 = mcolors.LinearSegmentedColormap.from_list(
+        "red", [(255/255, 80/255, 80/255), (139/255, 0/255, 0/255)]
+    )
+    cmap_ax2 = mcolors.LinearSegmentedColormap.from_list(
+        "orange", [(255/255, 180/255, 50/255), (180/255, 90/255, 0/255)]
+    )
         
     shape = surface.shape # (x, t)
     if over == 'x':
@@ -59,29 +66,33 @@ def plot_xt_surface_projected(junc: Junction, over=None, ax=None):
         fig, ax = plt.subplots()
     else:
         fig = ax.figure
-
     dim = np.linspace(0, dim_range, length)
     if over == 'x':
-        for i in range(0, 200, 50):
-            im = ax.plot(
+        indices = range(0, 200, 50)
+        for k, i in enumerate(indices):
+            t = k / (len(indices) - 1)
+            ax.plot(
                 dim,
                 surface_scaled[:, i],
+                color=cmap_ax1(t),
                 label=f'{i}',
             )
         ax.set_xlabel(u'X (μm)', labelpad=0)
         ax.set_ylabel(u'Y (μm)', labelpad=0)
         ax.legend(title='Time (s)', loc='upper left')
     elif over == 't':
-        for i in range(0, 100, 25):
-            im = ax.plot(
+        indices = range(0, 100, 25)
+        for k, i in enumerate(indices):
+            t = k / (len(indices) - 1)
+            ax.plot(
                 dim,
                 surface_scaled[i],
-                label=f'{(i * config.dx * 1e6):.0f}'
+                color=cmap_ax2(t),
+                label=f'{(i * config.dx * 1e6):.0f}',
             )
         ax.set_xlabel(u'T (s)', labelpad=0)
         ax.set_ylabel(u'Y (μm)', labelpad=0)
         ax.legend(title=u'X (μm)', loc='upper left')
-    ax.xaxis.set_major_locator(ticker.FixedLocator([0, dim_range]))
 
     # ax.set_xticks([x_range_scaled])
     # ax.set_yticks([0, t_range + 1])

@@ -92,7 +92,7 @@ def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
     )
 
     for junc in cell.junctions:
-        junc =clean_junction(junc=junc)
+        junc = clean_junction(junc=junc)
         label_junction(junc=junc, cell=cell, sample=sample)
 
     sample.append_cell(cell=cell)
@@ -220,7 +220,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     if config.save_cells:
         with Timer(text="Saved junctions to png and pdf: {:.3f}s", logger=logger.info):
             for cell in sample.cells:
-                fig = plot_cell_3d_with_norms(cell=cell, title=cell)
+                fig = plot_cell_3d_with_norms(cell=cell, title=cell)    # Fig 1B
                 png_name = f'C{cell.cell_index}_render.png'
                 fig.savefig(cell_dir / f"C{cell.cell_index}" / png_name, transparent=True)
                 plt.close(fig)

@@ -1,11 +1,17 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 import numpy as np
+from matplotlib.colorbar import Colorbar
 from tflux.pipeline import config
 from tflux.plotting.axes import _ensure_ax_3d
-from tflux.dtypes import Mesh
+from tflux.dtypes import GridFFT, Mesh
+from tflux.utils.logging import get_logger
 from tflux.plotting.rcparams import apply_3d_style
 from tflux.plotting.plotting_utils import set_3d_axis_ticksize
+
+logger = get_logger(__name__)
 
 def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=True, ax=None):
     
@@ -33,7 +39,7 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
         x,
         y,
         z,
-        cmap='Oranges', edgecolor='none', alpha=0.95
+        cmap='YlOrBr', edgecolor='none', alpha=0.95
     )
         
     # Optionally plot the fitted plane
@@ -57,9 +63,9 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
     ax.tick_params(axis='x', pad=15)
     ax.tick_params(axis='y', pad=7.5)
     ax.tick_params(axis='z', pad=15)
-    ax.set_xlabel(r"q ($m^{-1}$)", labelpad=15)
-    ax.set_ylabel(r"$\omega$ ($s^{-1}$)", labelpad=15)
-    ax.set_zlabel(r"$\langle | u^{2} | \rangle$ ($m^4$)", labelpad=30)
+    ax.set_xlabel(r"$q \; (m^{-1}$)", labelpad=15)
+    ax.set_ylabel(r"$\omega \; (s^{-1}$)", labelpad=15)
+    ax.set_zlabel(r"$\langle |\tilde{u}^2| \rangle \; (m^4 s^2)$", labelpad=35)
     ax.set_box_aspect(None, zoom=0.85)
 
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -77,186 +83,97 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
     ax.yaxis.set_major_locator(ticker.FixedLocator([-3, -1]))
     ax.zaxis.set_major_locator(ticker.MaxNLocator(nbins=3, steps=[2, 4, 5], integer=True))
     
+    # mappable = ax.collections[0]
+    # cb = fig.colorbar(mappable, ax=ax, shrink=0.5, pad=0.1)
+    # cb.set_label(r"$\langle |\tilde{u}^2| \rangle \; (m^4 s^2)$")
+    # cb.locator = MinMaxLocator(z.min(), z.max())
+    # cb.formatter = MinMaxFormatter()
+    # cb.update_ticks()
+
     apply_3d_style(ax)
     ax = set_3d_axis_ticksize(ax=ax)
     return ax
 
 
-def plot_fft_vs_q_omega_loglog(fft, ax1=None, ax2=None):
+def _add_fft_colorbar(
+    fig: plt.Figure,
+    ax: plt.Axes,
+    cmap: mcolors.LinearSegmentedColormap,
+    vmin: float,
+    vmax: float,
+    label: str,
+) -> Colorbar:
+    sm = cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=vmin, vmax=vmax))
+    sm.set_array([])
+    cb = fig.colorbar(sm, ax=ax)
+    cb.set_label(label, labelpad=8)
+    cb.locator = ticker.NullLocator()
+    cb.formatter = ticker.NullFormatter()
+    cb.update_ticks()
+    return cb
 
-    M, N = fft.shape
-    q = np.fft.fftfreq(M, d=config.dx)  # Cycles per meter
-    q = np.fft.fftshift(q)
-    q_positive_mask = q > 0
-    log_q = np.log10(q[q_positive_mask])
-    
-    omega = np.fft.fftfreq(N, d=config.dt)  # Cycles per meter
-    omega = np.fft.fftshift(omega)
-    omega_positive_mask = omega > 0
-    log_omega = np.log10(omega[omega_positive_mask])
-    
-    fft_positive_q = fft[q_positive_mask]
-    fft_positive = fft_positive_q[:, omega_positive_mask]
-    fft_squared = np.abs(fft_positive) ** 2
-    log_fft_squared = np.log10(fft_squared)
-    
-    if ax1 == None:
-        fig1, ax1 = plt.subplots()
-        
-    if ax2 == None:
-        fig2, ax2 = plt.subplots()
-    
+
+def _plot_fft_lines(
+    ax: plt.Axes,
+    x: np.ndarray,
+    lines: np.ndarray,
+    cmap: mcolors.LinearSegmentedColormap,
+    xlabel: str,
+    scale: str | None,
+) -> None:
+    n_lines = lines.shape[0]
+    for i in range(n_lines):
+        t = i / (n_lines - 1)
+        ax.plot(x, lines[i], c=cmap(t), alpha=1, linewidth=0.4)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(r"$\langle |\tilde{u}^2| \rangle \; (m^4 s^2)$")
+    ax.set_facecolor('lightgray')
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    if scale == 'log':
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+
+
+def plot_fft_vs_q_omega(
+    fft: GridFFT,
+    ax1: plt.Axes | None = None,
+    ax2: plt.Axes | None = None,
+    scale: str | None = None,
+) -> list[plt.Axes]:
+    if not fft.squared or not fft.shifted:
+        raise ValueError("FFT must be shifted and squared before plotting.")
+
+    q_positive_mask = fft.q > 0
+    omega_positive_mask = fft.w > 0
+    log_q = np.log10(fft.q[q_positive_mask])
+    log_omega = np.log10(fft.w[omega_positive_mask])
+
     valid_q_mask = log_q < config.TANGENT_CUTOFF
     valid_omega_mask = log_omega < config.TANGENT_CUTOFF_TIME
-    
-    max_m = np.sum(valid_q_mask)
-    max_n = np.sum(valid_omega_mask)
 
-    
-    
-    for m in range(max_m):
-        t = m / (max_m - 1)      # 0 → 1
-    
-        if t < 0.5:
-            # Green → Blue
-            r = 0
-            g = 1 - 2*t             # 1 → 0
-            b = 2*t                 # 0 → 1
-        else:
-            # Blue → Purple
-            r = 0.5 * (2*(t - 0.5))   # 0 → 0.5
-            g = 0
-            b = 1 - 0.5*(2*(t - 0.5)) # 1 → 0.5
-    
-        ax1.plot(log_omega,
-                 log_fft_squared[m],
-                 c=(r, g, b),
-                 alpha=1,
-                 linewidth=0.2)
+    fft_positive = fft.z_tilde[q_positive_mask][:, omega_positive_mask]
+    max_m = int(np.sum(valid_q_mask))
+    max_n = int(np.sum(valid_omega_mask))
 
-    
-    for n in range(max_n):
-        t = n / (max_n - 1)      # 0 → 1
-    
-        if t < 0.5:
-            # Orange → Red
-            r = 1
-            g = 0.5 * (1 - 2*t)     # 0.5 → 0
-            b = 0
-        else:
-            # Red → Dark Red
-            r = 1 - 0.5*(t - 0.5)*2  # 1 → 0.5
-            g = 0
-            b = 0
-    
-        ax2.plot(log_q,
-                 log_fft_squared[:, n].flatten(),
-                 c=(r, g, b),
-                 alpha=1,
-                 linewidth=0.2)
-        
-    ax1.set_xlabel('log omega (1/s)')
-    ax1.set_ylabel('log amp squared (m^4)')
-    ax1.set_facecolor('lightgray')
-    ax1.grid()
-    ax2.set_xlabel('log q (1/m)')
-    ax2.set_ylabel('log amp squared (m^4)')
-    ax2.set_facecolor('lightgray')    
-    ax2.grid()
-    
-    return [ax1, ax2]
+    cmap_ax1 = mcolors.LinearSegmentedColormap.from_list(
+        "blue_purple", [(44/255, 14/255, 227/255), (156/255, 14/255, 227/255)]
+    )
+    cmap_ax2 = mcolors.LinearSegmentedColormap.from_list(
+        "green_blue", [(44/255, 168/255, 60/255), (44/255, 168/255, 200/255)]
+    )
 
+    fig1, ax1 = (plt.subplots(layout='tight') if ax1 is None else (ax1.get_figure(), ax1))
+    fig2, ax2 = (plt.subplots(layout='tight') if ax2 is None else (ax2.get_figure(), ax2))
+    # fig1.subplots_adjust(top=0.85) # Must be tight_layout
+    # fig2.subplots_adjust(top=0.85)
 
-def plot_fft_vs_q_omega(fft, ax1=None, ax2=None, scale=None):
+    _plot_fft_lines(ax1, fft.w[omega_positive_mask], fft_positive[:max_m], cmap_ax1, r"$\omega \; (s^{-1})$", scale)
+    _plot_fft_lines(ax2, fft.q[q_positive_mask], fft_positive[:, :max_n].T, cmap_ax2, r"$q \; (m^{-1})$", scale)
 
-    M, N = fft.shape
-    q = np.fft.fftfreq(M, d=config.dx)  # Cycles per meter
-    q = np.fft.fftshift(q)
-    q_positive_mask = q > 0
-    log_q = np.log10(q[q_positive_mask])
-    
-    omega = np.fft.fftfreq(N, d=config.dt)  # Cycles per meter
-    omega = np.fft.fftshift(omega)
-    omega_positive_mask = omega > 0
-    log_omega = np.log10(omega[omega_positive_mask])
-    
-    fft_positive_q = fft[q_positive_mask]
-    fft_positive = fft_positive_q[:, omega_positive_mask]
-    fft_squared = np.abs(fft_positive) ** 2
-    
-    if ax1 == None:
-        fig1, ax1 = plt.subplots()
-        
-    if ax2 == None:
-        fig2, ax2 = plt.subplots()
-    
-    valid_q_mask = log_q < config.TANGENT_CUTOFF
-    valid_omega_mask = log_omega < config.TANGENT_CUTOFF_TIME
-    
-    max_m = np.sum(valid_q_mask)
-    max_n = np.sum(valid_omega_mask)
-    
-    
-    
-    for m in range(max_m):
-        t = m / (max_m - 1)      # 0 → 1
-    
-        if t < 0.5:
-            # Green → Blue
-            r = 0
-            g = 1 - 2*t             # 1 → 0
-            b = 2*t                 # 0 → 1
-        else:
-            # Blue → Purple
-            r = 0.5 * (2*(t - 0.5))   # 0 → 0.5
-            g = 0
-            b = 1 - 0.5*(2*(t - 0.5)) # 1 → 0.5
-    
-        ax1.plot(omega[omega_positive_mask],
-                 fft_squared[m],
-                 c=(r, g, b),
-                 alpha=1,
-                 linewidth=0.4)
+    _add_fft_colorbar(fig1, ax1, cmap_ax1, fft.q[q_positive_mask][valid_q_mask].min(), fft.q[q_positive_mask][valid_q_mask].max(), r"$q \; (m^{-1})$")
+    _add_fft_colorbar(fig2, ax2, cmap_ax2, fft.w[omega_positive_mask][valid_omega_mask].min(), fft.w[omega_positive_mask][valid_omega_mask].max(), r"$\omega \; (s^{-1})$")
 
-    
-    for n in range(max_n):
-        t = n / (max_n - 1)      # 0 → 1
-    
-        if t < 0.5:
-            # Orange → Red
-            r = 1
-            g = 0.5 * (1 - 2*t)     # 0.5 → 0
-            b = 0
-        else:
-            # Red → Dark Red
-            r = 1 - 0.5*(t - 0.5)*2  # 1 → 0.5
-            g = 0
-            b = 0
-    
-        ax2.plot(q[q_positive_mask],
-                 fft_squared[:, n].flatten(),
-                 c=(r, g, b),
-                 alpha=1,
-                 linewidth=0.4)
-        
-    ax1.set_xlabel('omega (1/s)')
-    ax1.set_ylabel('amp squared (m^4)')
-    ax1.set_facecolor('lightgray')
-    ax1.grid()
-    # ax1.ticklabel_format(axis='both', style='scientific', scilimits=(0, 0)) 
     if scale == 'log':
-        ax1.set_xscale('log')
-        ax1.set_yscale('log')
-        
-    
-    ax2.set_xlabel('q (1/m)')
-    ax2.set_ylabel('amp squared (m^4)')
-    ax2.set_facecolor('lightgray')    
-    ax2.grid()
-    # ax2.ticklabel_format(axis='both', style='scientific', scilimits=(0, 0))
-    if scale == 'log':
-        ax2.set_xscale('log')
-        ax2.set_yscale('log')
-        ax2.set_xlim(q[q_positive_mask].min()*0.8, q[q_positive_mask].max()*1.2)
-        
+        ax2.set_xlim(fft.q[q_positive_mask].min() * 0.8, fft.q[q_positive_mask].max() * 1.2)
+
     return [ax1, ax2]
