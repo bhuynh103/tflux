@@ -127,7 +127,7 @@ def plot_junction_summary_2x2(junc: Junction) -> plt.Figure:
     return fig
 
 
-def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes]:  # Overloading the first 3x3 function
+def plot_junction_summary(junc: Junction, output_dir: Path) -> list[plt.Axes]:  # Overloading the first 3x3 function
     logger.debug(f"Ranges | T: {junc.get_range('t')} s, X: {junc.get_range('x') * 1e6} um")
     axs = []
     axs.append(points.plot_junc_3d(junc))   # C
@@ -135,18 +135,14 @@ def plot_junction_summary_3x3(junc: Junction, output_dir: Path) -> list[plt.Axes
     axs.append(grids.plot_xt_surface_projected(junc, over='x')) # E
     axs.append(grids.plot_xt_surface_projected(junc, over='t')) # F
     axs.append(fft.plot_3d_fft(junc.mesh, log=True, log_residuals=False, include_best_fit=True)) # G
-    # axs.extend(fft.plot_fft_vs_q_omega(junc.fft.z_tilde))
-    # axs.append(reg.plot_2d_fft_slope(junc.linreg_q))
-    # axs.append(reg.plot_2d_fft_slope(junc.linreg_w))
     axs.extend(fft.plot_fft_vs_q_omega(junc.fft, scale='log'))  # H, I
     axs.append(reg.plot_2d_fft_slope(junc.linreg_w, scale='log'))       # J
     axs.append(reg.plot_2d_fft_slope(junc.linreg_q, scale='log'))       # K
-    # axs.append(grids.plot_qw_surface(junc))
 
     logger.debug(axs)
 
     out_subdir = output_dir / f"C{junc.cell_index}" / f"J{junc.roi_index}"
-    letters = 'cdefghijkl' # 'abcdefghijkl'
+    letters = 'cdefghijk' # 'cdefghijk'
     
     seen_figs = set()
     for ax, letter in zip(axs, letters):

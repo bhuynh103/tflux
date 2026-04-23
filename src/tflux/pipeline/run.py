@@ -12,9 +12,9 @@ import tflux.preprocessing.grid_utils as grid_utils
 import tflux.preprocessing.vertices_utils as vertices_utils
 import tflux.preprocessing.kmean_norms as kmean_norms
 import tflux.analysis.slope_analyzer as slope_analyzer
-from tflux.plotting.junction_summary import plot_junction_summary_3x3
+from tflux.plotting.junction_summary import plot_junction_summary
 from tflux.plotting.points import plot_cell_3d_with_norms
-from tflux.plotting.sample_slope_hist import plot_gradient_histograms, plot_all_gradient_histograms, plot_linreg_fits, plot_linreg_hist
+from tflux.plotting.sample_slope_hist import plot_linreg_fits, plot_linreg_hist
 from tflux.dtypes import Sample, Cell, Junction, GridFFT, Grid, Mesh, LinReg
 from tflux.utils.logging import get_logger
 
@@ -126,7 +126,7 @@ def _create_output_dirs(output_dir_path: Path, sample: Sample):
     for cell_index in range(len(sample.cells)):
         (cell_dir / f"C{cell_index}").mkdir(parents=True, exist_ok=True)
         for junc in sample.cells[cell_index].junctions:
-            if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
+            if junc.roi_index != -1 or not config.drop_bad_junctions:
                 (cell_dir / f"C{cell_index}" / f"J{junc.roi_index}").mkdir(parents=True, exist_ok=True)
     return cell_dir
 
@@ -167,12 +167,8 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
     for cell in sample.cells:
         logger.info(f"Summarizing {len(cell.junctions)} junctions in cell {cell.cell_index}")
         for junc in cell.junctions:
-            if junc.roi_index != -1 or config.include_bad_junctions_in_summary:
-                # fig = plot_junction_summary_3x3(junc=junc)  # TODO: fix bug and verify fft plots are correct
-                # png_name = f'C{cell.cell_index}-J{junc.roi_index}_3x3summary.png'
-                # fig.savefig(summary_dir / f"C{cell.cell_index}" / f"J{junc.roi_index}" / png_name)
-                # plt.close(fig)
-                plot_junction_summary_3x3(junc=junc, output_dir=summary_dir)
+            if junc.roi_index != -1 or not config.drop_bad_junctions:
+                plot_junction_summary(junc=junc, output_dir=summary_dir)
 
 
 ### PIPELINE START ###
@@ -200,7 +196,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
     if config.save_average_slope_csv:
         slope_analyzer.average_sample_slopes(sample, slopes=None, output_dir=output_dir_path)
 
-    if config.make_junc_summary:
+    if config.summarize_junc:
         with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
             summarize_sample_junctions(summary_dir=cell_dir, sample=sample)
             # plot_junction_summary_3x3(junc=sample.cells[0].junctions[0], output_dir=cell_dir)  # Debug
@@ -213,11 +209,6 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
 
     if config.make_histogram:
         hist_dir = output_dir_path / "histograms"
-
-        # fig = plot_gradient_histograms(csv_path=metrics_csv_path, title=data_dir_path) 
-        # png_name = f'{sample_label}_hist.png'
-        # fig.savefig(hist_dir / png_name)
-        # plt.close(fig)
 
         fig = plot_linreg_fits(sample)
         png_name = f'{sample_label}_linreg.png'

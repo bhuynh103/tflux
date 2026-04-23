@@ -1,6 +1,9 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from tflux.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def find_root() -> Path:
@@ -122,7 +125,7 @@ def get_directories_in_path(path) -> list[Path]:
             if os.path.isdir(full_path):
                 directories.append(full_path)
     except FileNotFoundError:
-        print(f"Error: The path '{path}' was not found.")
+        logger.error(f"The path '{path}' was not found.")
     except PermissionError:
-        print(f"Error: Permission denied to access '{path}'.")
+        logger.error(f"Permission denied to access '{path}'.")
     return directories

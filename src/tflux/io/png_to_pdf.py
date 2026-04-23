@@ -2,6 +2,9 @@ from pathlib import Path
 from PIL import Image
 from reportlab.lib.pagesizes import landscape, portrait
 from reportlab.pdfgen import canvas
+from tflux.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def pngs_to_pdf(
@@ -78,5 +81,5 @@ def pngs_to_pdf(
         c.showPage()
 
     c.save()
-    print(f"PDF written to: {output_path}  ({len(png_files)} pages)")
+    logger.info(f"PDF written to: {output_path}  ({len(png_files)} pages)")
     return output_path

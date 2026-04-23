@@ -225,11 +225,11 @@ class GridFFT():
         if dim == 'q':
             x = self.q[mask]
             y = self.z_tilde.mean(axis=1)[mask] # Averages over omega
-            # print(f'q: {len(x)}, z: {len(y)}')
+            # logger.debug(f'q: {len(x)}, z: {len(y)}')
         if dim == 'w':
             x = self.w[mask]
             y = self.z_tilde.mean(axis=0)[mask] # Averages over q
-            # print(f'w: {len(x)}, z: {len(y)}')
+            # logger.debug(f'w: {len(x)}, z: {len(y)}')
         
         # log transform after masking
         x, y = self.log_transform(x, y)

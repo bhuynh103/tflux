@@ -45,7 +45,7 @@ def main():
     with Timer(text="Pipeline: {:.3f}s", logger=logger.info):
         sample_WT = run.run_pipeline(data_dir_path=input_dirs["WT"], output_dir_path=output_dir, sample_label="WT")
 
-        if config.make_comparison_histogram:
+        if config.compare_samples_ab:
             sample_a = run.run_pipeline(data_dir_path=input_dirs["Control"], output_dir_path=output_dir, sample_label="control")
             sample_b = run.run_pipeline(data_dir_path=input_dirs["Experimental"], output_dir_path=output_dir, sample_label="experimental")
 

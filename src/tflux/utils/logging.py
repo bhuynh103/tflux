@@ -11,18 +11,18 @@ def get_logger(name: str) -> logging.Logger:
 
         formatter = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
 
-        # Console — respects LOG_LEVEL
+        # Logs to terminal with config.LOG_LEVEL
         console = logging.StreamHandler()
         console.setLevel(level)
         console.setFormatter(formatter)
         logger.addHandler(console)
 
-        # File — always DEBUG so nothing is lost
+        # Logs to file with DEBUG
         if config.LOG_FILE:
             log_path = Path(config.LOG_FILE)
             log_path.parent.mkdir(parents=True, exist_ok=True)
             file_handler = logging.FileHandler(log_path, encoding="utf-8")
-            file_handler.setLevel(logging.DEBUG)
+            file_handler.setLevel(logging.DEBUG)    # Keeps all logs
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
 

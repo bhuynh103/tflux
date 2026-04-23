@@ -31,9 +31,10 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
         y = mesh.log_transform().w
         z = mesh.log_transform().z
         if log_residuals:
+            # Unused
             z = mesh.log_transform().get_residuals()
             include_best_fit = False
-            print("Ignoring best-fit plane for residual plot.")
+            logger.info("Ignoring best-fit plane for residual plot.")
     
     ax.plot_trisurf(
         x,

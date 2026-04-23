@@ -221,33 +221,7 @@ def compare_linreg_hists(sample_a: Sample, sample_b: Sample, labels=("A", "B")) 
     return fig
 
 
-def plot_all_gradient_histograms(csv_path_list: list[Path], output_dir: Path):
-    "Remember that config.CSV_PATHS include metrics that may be outdated"
-    for csv_path in csv_path_list:
-        print(csv_path)
-        root = paths.find_root()
-        csv_path = root / csv_path
-
-        fig = plot_gradient_histograms(csv_path=csv_path, bins=16)
-        png_name = f'{csv_path.stem}_hist.png'
-
-        fig.set_subplot_titles([
-            r'From Gradient: $\frac{\partial u^2}{\partial q}$',
-            r'From Gradient: $\frac{\partial u^2}{\partial \omega}$', 
-            r'From Averaging: $\frac{d \langle u^2 \rangle_\omega}{d q}$',
-            r'From Averaging: $\frac{d \langle u^2 \rangle_q}{d \omega}$'
-        ])
-
-        fig.set_subplot_xlabels([
-            r'$\alpha$',
-            r'$\alpha$',
-            r'$\alpha$', 
-            r'$\alpha$'
-        ])
-        fig.savefig(output_dir / png_name)
-        # plt.show()
-
-
+# Deprecated
 def plot_gradient_histograms(csv_path, bins=30, title=None) -> plt.Figure:
     """
     Plot 2x2 histograms for grad_q, grad_w, linreg_q, linreg_w from a CSV.

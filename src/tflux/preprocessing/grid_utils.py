@@ -82,7 +82,7 @@ def interpolate_zeros(grid: Grid) -> Grid:
     sparse_zero_mask: np.ndarray = (non_zero_neighbors >= majority_threshold) & (cts < config.SUFFICIENT_COUNT)
     
     if config.WINDOW_SIZE % 2 == 0:
-        print("Window size is even, adding 1 to make it odd for generic filter.")
+        logger.info("Window size is even, adding 1 to make it odd for generic filter.")
         config.WINDOW_SIZE += 1 
     
     # Interpolate sparse zeros using averaging of non-zero neighbors
@@ -116,8 +116,8 @@ def trim_grid(grid: Grid, crop_percent: float = config.CROP_PERCENT) -> Grid:
     x = grid.x
     z = grid.z
 
-    # print(f"Pre trimming Length x: {len(grid.x)}")
-    # print(f"Shape z: {grid.z.shape}")
+    # logger.debug(f"Pre trimming Length x: {len(grid.x)}")
+    # logger.debug(f"Shape z: {grid.z.shape}")
 
     left = int(x.size * crop_percent / 2)
     right = int(x.size - left)
