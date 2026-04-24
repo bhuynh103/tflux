@@ -84,6 +84,7 @@ def plot_3d_fft(mesh: Mesh, log=False, log_residuals=False, include_best_fit=Tru
     ax.yaxis.set_major_locator(ticker.FixedLocator([-3, -1]))
     ax.zaxis.set_major_locator(ticker.MaxNLocator(nbins=3, steps=[2, 4, 5], integer=True))
     
+    # Colorbar axis limits moved to Figure 1 caption
     # mappable = ax.collections[0]
     # cb = fig.colorbar(mappable, ax=ax, shrink=0.5, pad=0.1)
     # cb.set_label(r"$\langle |\tilde{u}^2| \rangle \; (m^4 s^2)$")

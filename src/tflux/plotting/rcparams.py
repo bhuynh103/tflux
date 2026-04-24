@@ -1,6 +1,7 @@
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 
+# Note: most plots have individual tweaks in their plotting functions, but these serve well as a general base params for figures with larger text.
 BASE_PARAMS = {
     'font.family': 'Arial',
     'font.size': 14,
@@ -16,6 +17,7 @@ BASE_PARAMS = {
     'figure.constrained_layout.use': True
 }
 
+# Need this for Axes3D. Any additional params here must also be set manually by apply_3d_style. 
 PARAMS_3D = {
     'axes.labelsize': 28,
     'xtick.labelsize': 20,

@@ -13,12 +13,18 @@ from tflux.dtypes import Sample
 
 logger = get_logger(__name__)
 
-def average_sample_slopes(sample, slopes: list[str], output_dir=None):
+def average_sample_slopes(sample, output_dir: Path):
     """
     Calculate and save average slopes to a text file.
+
+    Inputs:
+        sample: Sample      Input Sample object
+        output_dir: Path    Output directory
+    Returns:
+        0                   Valid
     """
-    if slopes is None:
-        slopes = ['a', 'b', 'q_m', 'w_m']
+    # Contains which slopes to save from ['a', 'b', 'q_m', 'w_m'], defaults to saving all
+    slopes = ['a', 'b', 'q_m', 'w_m']
 
     N = len(sample.valid_juncs)
     logger.info(f"Analyzing slopes of N = {N} valid junctions.")
@@ -27,8 +33,6 @@ def average_sample_slopes(sample, slopes: list[str], output_dir=None):
         if output_dir is not None:
             output_dir = Path(output_dir)
             output_file = output_dir / "slopes.txt"
-        else:
-            output_file = "slopes.txt"
         
         # Calculate slopes and write to file
         with open(output_file, 'w') as f:
@@ -43,8 +47,10 @@ def average_sample_slopes(sample, slopes: list[str], output_dir=None):
         
         logger.info(f"Slopes saved to: {output_file}")
 
+    return 0
 
-def save_slopes_to_csv(sample: Sample, output_dir=None, filename="slopes.csv"):
+
+def save_slopes_to_csv(sample: Sample, output_dir: Path):
     """
     Save all junction slopes to a CSV file.
     """
@@ -55,9 +61,7 @@ def save_slopes_to_csv(sample: Sample, output_dir=None, filename="slopes.csv"):
     # Prepare output file path
     if output_dir is not None:
         output_dir = Path(output_dir)
-        output_file = output_dir / filename
-    else:
-        output_file = filename
+        output_file = output_dir / 'slopes.csv'
     
     # Write to CSV
     with open(output_file, 'w', newline='') as f:
@@ -71,7 +75,7 @@ def save_slopes_to_csv(sample: Sample, output_dir=None, filename="slopes.csv"):
             writer.writerow([junc.mesh.a, junc.mesh.b, junc.linreg_q.m, junc.linreg_w.m, junc.source_file])
     
     logger.info(f"Saved {len(sample.valid_juncs)} junctions to: {output_file}")
-    return output_file
+    return 0
 
 
 def tension_interpolation(interp):

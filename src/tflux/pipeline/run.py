@@ -59,11 +59,14 @@ def analyze_junction_spectrum(junc: Junction) -> Junction:
 def clean_junction(junc: Junction) -> Junction:
     junc = vertices_utils.reorient_junction(junc)
     junc = grid_junction(junc)
-    junc = analyze_junction_spectrum(junc)
     return junc
 
 
 def label_junction(junc: Junction, cell: Cell, sample: Sample):
+    '''
+    If Junction exceeds config.PERCENT_ZERO_THRESHOLD, flag Junction as invalid by setting roi_index to -1.
+    Otherwise, add to Sample.valid_juncs list.
+    '''
     junc.cell_index = cell.cell_index
     if junc.grid is not None and junc.grid.percent_zero > config.PERCENT_ZERO_THRESHOLD:
         logger.info(f"Omitting sparse junction at roi_index {junc.roi_index} with {junc.grid.percent_zero * 100:.2f}% zeroes.")
@@ -73,8 +76,20 @@ def label_junction(junc: Junction, cell: Cell, sample: Sample):
         sample.valid_juncs.append(junc)
 
 
-def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
-    # Assumes each file has one cell
+def process_junctions_from_file(sample: Sample, file_path: Path, file_index: int):
+    '''
+    Takes one cell from a single .obj, initializes a Cell object and partitions into k Junctions
+    using k-means clustering with config hyperparams. Cleans and generates all other data 
+    objects for Junctions, and updates Sample accordingly.    (see tflux/dtypes.py)
+
+    Inputs:
+        sample: Sample      Sample object to update with new cell
+        file_path: Path     Source file of cell
+        file_index: int     Dummy file index for iteration
+
+    Returns:
+        0
+    '''
     cell = Cell(
         source_file=file_path,
         cell_index=file_index,
@@ -89,18 +104,29 @@ def find_junctions_from_file(file_index: int, file_path: Path, sample: Sample):
         normal_weight=config.NORMAL_WEIGHT,
         geom_weight=config.GEOM_WEIGHT,
         cell=cell
-    )
+    )   # Create Junction
 
     for junc in cell.junctions:
-        junc = clean_junction(junc=junc)
+        junc = clean_junction(junc=junc)            # Create Grid
+        junc = analyze_junction_spectrum(junc)      # Create GridFFT, Mesh, and LinReg
         label_junction(junc=junc, cell=cell, sample=sample)
 
     sample.append_cell(cell=cell)
     sample.append_junctions(juncs=junctions)
-    return
+    return 0
 
 
 def get_files_from_directory(data_dir_path: Path):
+    '''
+    Find and return user's desired files from data directory.
+
+    Inputs: 
+        data_dir_path: Path     Data directory
+    Returns:
+        pkl_files: list[Path]   Pickle file with serialized preprocessed Sample data, if detected and approved by user.
+        OR
+        obj_files: list[Path]   List of .obj files to be processed, if detected. Otherwise, abort with RuntimeError.
+    '''
     if not data_dir_path.exists() or not data_dir_path.is_dir():
         raise NotADirectoryError(f"Directory not found: {data_dir_path}")
     
@@ -121,7 +147,11 @@ def get_files_from_directory(data_dir_path: Path):
     return obj_files
 
 
-def _create_output_dirs(output_dir_path: Path, sample: Sample):
+def _create_cell_junc_dirs(sample: Sample, output_dir_path: Path):
+    '''
+    Create Cell directories (C0, C1...) with corresponding Junction subdirectories (J0, J1...).
+    Can keep or drop bad junctions with too many zeroes, flagged by label_junction()
+    '''
     cell_dir = output_dir_path / "cells"
     for cell_index in range(len(sample.cells)):
         (cell_dir / f"C{cell_index}").mkdir(parents=True, exist_ok=True)
@@ -131,8 +161,13 @@ def _create_output_dirs(output_dir_path: Path, sample: Sample):
     return cell_dir
 
 
-def _load_sample(data_dir_path: Path) -> Sample:
-    """Load Sample from .pkl or process .obj files. Saves .pkl if config.save_pickle."""
+def _process_sample(data_dir_path: Path) -> Sample:
+    '''
+    Load Sample from .pkl or process .obj files. Saves/overrides .pkl if config.save_pickle.
+    
+    Returns:
+        sample: Sample      Fully processed Sample object. (see tflux/dtypes.py for attributes)
+    '''
     files = get_files_from_directory(data_dir_path=data_dir_path)
 
     if files[0].suffix == ".pkl":
@@ -140,7 +175,8 @@ def _load_sample(data_dir_path: Path) -> Sample:
         with open(files[0], "rb") as f:
             return pickle.load(f)
     
-    sample = process_files(files)
+    # Main processing loop
+    sample = _process_files(files)
 
     if config.save_pickle:
         pkl_out = data_dir_path / "sample.pkl"
@@ -150,13 +186,16 @@ def _load_sample(data_dir_path: Path) -> Sample:
     return sample
 
 
-def process_files(files: list[Path]):
+def _process_files(files: list[Path]):
+    '''
+    Iterate over all given .obj files to populate Sample with Cell and Junction objects.
+    '''
     sample = Sample()
     for file_index, file_path in enumerate(files):
         try:
             # Updates Sample with new cell entry, junction entries, and valid_junction entries.
             logger.info(f"\nOpening file {file_index}/{len(files)}")
-            find_junctions_from_file(file_index=file_index, file_path=file_path, sample=sample)
+            process_junctions_from_file(file_index=file_index, file_path=file_path, sample=sample)
         except Exception as e:
             logger.error(f"Failed to process file {file_path.name}: {e}")
             raise
@@ -172,43 +211,51 @@ def summarize_sample_junctions(summary_dir: Path, sample: Sample):
 
 
 ### PIPELINE START ###
-def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str = None) -> Sample: # output_dir_path is root of output dir, must enter sample_label subdir
+def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str) -> Sample: 
+    '''
+    Inputs:
+        data_dir_path: Path     Directory with .obj files (or .pkl file) to generate a Sample
+        output_dir_path: Path   Output directory root
+        sample_label: str       Label sample accordingly
 
+    Returns:
+        sample: Sample          Sample object has processed Junction, Grid, GridFFT, Mesh, and LinReg
+                                objects ready to be plotted. (see tflux/dtypes.py)
+    '''
     if not data_dir_path.exists() or not data_dir_path.is_dir():
         raise NotADirectoryError(f"Directory not found: {data_dir_path}")
     
     if not output_dir_path.exists() or not output_dir_path.is_dir():
         raise NotADirectoryError(f"Directory not found: {output_dir_path}")
 
-    # Check for .pkl and .obj files, prioritize .pkl if user confirms.
-    sample = _load_sample(data_dir_path)
-
     logger.info("="*60)
     logger.info("Starting tflux pipeline")
     logger.info("="*60)
 
-    output_dir_path = output_dir_path / sample_label
-    cell_dir = _create_output_dirs(output_dir_path, sample)
+    # Main function for generating sample and performing all data processing
+    sample = _process_sample(data_dir_path)
 
-    # Only analyze valid junctions
-    metrics_csv_path = slope_analyzer.save_slopes_to_csv(sample, output_dir=output_dir_path)
+    output_subdir_path = output_dir_path / sample_label     # Create outputs/[datetime]/sample_label (WT, control, experimental)
+    cell_dir = _create_cell_junc_dirs(sample, output_subdir_path)
+
+    # Only analyze valid junctions, doesn't consider condig.drop_bad_junctions
+    slope_analyzer.save_slopes_to_csv(sample, output_dir=output_subdir_path)   # Save all slopes to slopes.csv
 
     if config.save_average_slope_csv:
-        slope_analyzer.average_sample_slopes(sample, slopes=None, output_dir=output_dir_path)
+        slope_analyzer.average_sample_slopes(sample, output_dir=output_subdir_path)   # Save average slopes to slopes.txt
 
     if config.summarize_junc:
         with Timer(text="Summarized junctions: {:.3f}s", logger=logger.info):
             summarize_sample_junctions(summary_dir=cell_dir, sample=sample)
-            # plot_junction_summary_3x3(junc=sample.cells[0].junctions[0], output_dir=cell_dir)  # Debug
             if config.make_pdfs:
                 pngs_to_pdf(
                     input_dir=cell_dir, 
-                    output_path=Path(cell_dir / f"{output_dir_path.name}-junc_summaries.pdf"),
+                    output_path=Path(cell_dir / f"{output_subdir_path.name}-junc_summaries.pdf"),
                     pattern="*/*/*summary.png"
                 )
 
     if config.make_histogram:
-        hist_dir = output_dir_path / "histograms"
+        hist_dir = output_subdir_path / "histograms"
 
         fig = plot_linreg_fits(sample)
         png_name = f'{sample_label}_linreg.png'
@@ -230,7 +277,7 @@ def run_pipeline(data_dir_path: Path, output_dir_path: Path, sample_label: str =
             if config.make_pdfs:
                 pngs_to_pdf(
                     input_dir=cell_dir, 
-                    output_path=Path(cell_dir / f"{output_dir_path.name}-cells.pdf"),
+                    output_path=Path(cell_dir / f"{output_subdir_path.name}-cells.pdf"),
                     pattern="*/*render.png"
                 )
             

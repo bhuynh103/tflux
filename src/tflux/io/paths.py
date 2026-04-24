@@ -33,10 +33,10 @@ def make_output_dir(sample_labels: list[str]) -> Path:
     Structure:
     outputs/YYYY-MM-DD_NNN/
     ├── comparisons/
-    ├── Sample_A/
+    ├── control/
     │   ├── histograms/
     │   └── cells/
-    └── Sample_B/ ...
+    └── experimental/ ...
     """
     root_path: Path = find_root()
     outputs_dir = root_path / "outputs" 
@@ -80,7 +80,7 @@ def prepare_io(
     ----------
     data_paths : dict
         A mapping of labels to paths, e.g., 
-        {"WT": Path("..."), "Control": Path("..."), "Exp": Path("...")}
+        {"WT": Path("..."), "control": Path("..."), "experimental": Path("...")}
     set_output_dir_path : Path, optional
         The root directory for all outputs.
 
@@ -94,7 +94,6 @@ def prepare_io(
     
     # 1. Resolve Output Directory
     if set_output_dir_path is None:
-        # Assuming make_output_dir handles the directory creation logic
         output_root = make_output_dir(sample_labels=list(data_paths.keys()))
     else:
         output_root = set_output_dir_path
