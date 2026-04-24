@@ -14,6 +14,7 @@ from pathlib import Path
 from tflux.pipeline import config, run
 from tflux.io import paths
 from tflux.plotting.sample_slope_hist import compare_linreg_fits, compare_linreg_hists
+from tflux.analysis.slope_analyzer import ttest_linreg_slopes
 
 logger = get_logger(__name__)
 
@@ -55,6 +56,14 @@ def main():
             png_name = f'fit_comparison.png'
             fig_fit.savefig(comparison_dir / png_name)
             plt.close(fig_fit)
+
+            results = ttest_linreg_slopes(sample_a, sample_b, labels=("Bleb_control", "Bleb_experimental"))
+            for dim, r in results.items():
+                logger.info(
+                    "dim=%s  t=%.3f  p=%.4f  significant=%s",
+                    dim, r["t_stat"], r["p_value"], r["significant"]
+                )
+
 
     return 0
 

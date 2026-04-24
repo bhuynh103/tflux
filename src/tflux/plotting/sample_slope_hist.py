@@ -203,7 +203,7 @@ def compare_linreg_hists(sample_a: Sample, sample_b: Sample, labels=("A", "B")) 
         for s_idx, sample in enumerate(samples):
             juncs = [j for j in sample.valid_juncs if getattr(j, attr) is not None]
             slopes = np.array([getattr(j, attr).m for j in juncs])
-            
+
             # Histogram
             ax.hist(slopes, bins=15, alpha=0.5, color=colors[s_idx], 
                     edgecolor="white", label=f"Sample {labels[s_idx]}", density=False)

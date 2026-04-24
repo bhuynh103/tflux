@@ -11,8 +11,8 @@ save_config = True
 
 ### Data Paths ###
 sample_WT_dir_path: Path = Path("data/raw/all-data/WT")                 # WT (isolated)
-sample_a_dir_path: Path = Path("data/raw/all-data/Bleb/control")        # control (compared with b), requires 'compare_samples_ab = True' to analyze
-sample_b_dir_path: Path = Path("data/raw/all-data/Bleb/experimental")   # experimental (compared with a), requires 'compare_samples_ab = True' to analyze
+sample_a_dir_path: Path = Path("data/raw/all-data/LatB/control")        # control (compared with b), requires 'compare_samples_ab = True' to analyze
+sample_b_dir_path: Path = Path("data/raw/all-data/LatB/experimental")   # experimental (compared with a), requires 'compare_samples_ab = True' to analyze
 
 ### Logger Settings ###
 LOG_LEVEL = "INFO"          # Choose level of terminal logs, DEBUG is most verbose. [DEBUG, INFO, WARNING, ERROR, CRITICAL]

@@ -6,7 +6,10 @@ Created on Sun Jul 20 18:44:22 2025
 """
 
 import csv
+import numpy as np
 from pathlib import Path
+from scipy import stats
+
 import tflux.pipeline.config as config
 from tflux.utils.logging import get_logger
 from tflux.dtypes import Sample
@@ -76,6 +79,67 @@ def save_slopes_to_csv(sample: Sample, output_dir: Path):
     
     logger.info(f"Saved {len(sample.valid_juncs)} junctions to: {output_file}")
     return 0
+
+
+def ttest_linreg_slopes(
+    sample_a: Sample,
+    sample_b: Sample,
+    labels: tuple[str, str] = ("A", "B"),
+) -> dict[str, dict]:
+    """
+    Perform independent two-sample t-tests on linreg slope distributions
+    between two samples, for each regression dimension (q and ω).
+
+    Parameters
+    ----------
+    sample_a, sample_b : Sample
+        Samples whose valid junctions carry `linreg_q` and `linreg_w` attributes.
+    labels : tuple[str, str]
+        Display names for the two samples (used in the returned dict keys).
+
+    Returns
+    -------
+    results : dict[str, dict]
+        Keyed by dimension name ("q", "omega").  Each value contains:
+            slopes_a, slopes_b  – raw slope arrays
+            mean_a, mean_b      – sample means
+            std_a,  std_b       – sample std devs
+            n_a,    n_b         – sample sizes
+            t_stat              – t-statistic
+            p_value             – two-tailed p-value
+            significant         – bool, p < 0.05
+    """
+    dims = [
+        ("q",     "linreg_q"),
+        ("omega", "linreg_w"),
+    ]
+    results: dict[str, dict] = {}
+
+    for dim_name, attr in dims:
+        def _slopes(sample: Sample) -> np.ndarray:
+            juncs = [j for j in sample.valid_juncs if getattr(j, attr) is not None]
+            return np.array([getattr(j, attr).m for j in juncs])
+
+        slopes_a = _slopes(sample_a)
+        slopes_b = _slopes(sample_b)
+
+        t_stat, p_value = stats.ttest_ind(slopes_a, slopes_b, equal_var=False)  # Welch's t-test
+
+        results[dim_name] = {
+            f"slopes_{labels[0]}": slopes_a,
+            f"slopes_{labels[1]}": slopes_b,
+            f"mean_{labels[0]}":   slopes_a.mean(),
+            f"mean_{labels[1]}":   slopes_b.mean(),
+            f"std_{labels[0]}":    slopes_a.std(),
+            f"std_{labels[1]}":    slopes_b.std(),
+            f"n_{labels[0]}":      len(slopes_a),
+            f"n_{labels[1]}":      len(slopes_b),
+            "t_stat":              t_stat,
+            "p_value":             p_value,
+            "significant":         p_value < 0.05,
+        }
+
+    return results
 
 
 def tension_interpolation(interp):
