@@ -76,7 +76,7 @@ def plot_linreg_fits(sample: Sample) -> plt.Figure:
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(_log_formatter))
         ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
         ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
-        ax.legend(fontsize=16, framealpha=0.85)
+        # ax.legend(fontsize=16, framealpha=0.85)
         ax.grid(True, alpha=0.3, linestyle="--", linewidth=0.5)
         ax.set_axisbelow(True)
  
@@ -135,7 +135,7 @@ def plot_linreg_hist(sample: Sample) -> plt.Figure:
         # (Unless your slopes are also logarithmic)
         ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
         
-        ax.legend(fontsize=16, framealpha=0.85)
+        # ax.legend(fontsize=16, framealpha=0.85)
         ax.grid(True, alpha=0.3, linestyle="--", linewidth=0.5)
         ax.set_axisbelow(True)
 
@@ -183,7 +183,7 @@ def compare_linreg_fits(sample_a: Sample, sample_b: Sample, labels=("A", "B")) -
         ax.tick_params(axis="both", labelsize=24)
         ax.xaxis.set_major_formatter(ticker.FuncFormatter(_log_formatter))
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(_log_formatter))
-        ax.legend(fontsize=14, framealpha=0.8)
+        # ax.legend(fontsize=14, framealpha=0.8)
         ax.grid(True, alpha=0.3, linestyle="--")
         
     plt.tight_layout()
@@ -214,7 +214,7 @@ def compare_linreg_hists(sample_a: Sample, sample_b: Sample, labels=("A", "B")) 
 
         ax.set_xlabel(xlabel, fontsize=28); ax.set_ylabel("Frequency", fontsize=24)
         ax.tick_params(axis="both", labelsize=22)
-        ax.legend(fontsize=12, framealpha=0.8)
+        # ax.legend(fontsize=12, framealpha=0.8)
         ax.grid(True, alpha=0.3, linestyle="--")
 
     plt.tight_layout()

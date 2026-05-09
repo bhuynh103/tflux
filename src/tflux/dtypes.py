@@ -83,13 +83,13 @@ class Sample:
     def list_metric(self, attr: str) -> list[float]:
         match attr:
             case 'a':
-                attr_list = [junc.mesh.a for junc in self.juncs]
+                attr_list = [junc.mesh.a for junc in self.valid_juncs]
             case 'b':
-                attr_list = [junc.mesh.b for junc in self.juncs]
+                attr_list = [junc.mesh.b for junc in self.valid_juncs]
             case 'q_m':
-                attr_list = [junc.linreg_q.m for junc in self.juncs]
+                attr_list = [junc.linreg_q.m for junc in self.valid_juncs]
             case 'w_m':
-                attr_list = [junc.linreg_w.m for junc in self.juncs]
+                attr_list = [junc.linreg_w.m for junc in self.valid_juncs]
         return attr_list
 
     
