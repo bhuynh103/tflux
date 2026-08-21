@@ -32,7 +32,7 @@ drop_bad_junctions = True          # Junctions with percent_zero > PERCENT_ZERO_
 make_histogram = True              # Create histogram and lineplot of slopes within sample
 
 ### Comparative Analysis ###
-compare_samples_ab = True   # Run run_pipeline() on Sample A and Sample B and do comparison histogram and lineplot of slopes between samples. Figres 2+3.
+compare_samples_ab = False   # Run run_pipeline() on Sample A and Sample B and do comparison histogram and lineplot of slopes between samples. Figres 2+3.
 
 
 ### IF CHANGING ANYTHING BELOW THIS, DELETE OLD .pkl FILES FROM data FOLDER BEFORE RUNNING ###

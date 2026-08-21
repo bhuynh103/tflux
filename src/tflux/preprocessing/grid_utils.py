@@ -6,6 +6,7 @@ Created on Sun Jul 20 18:20:51 2025
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 import tflux.pipeline.config as config
 from tflux.utils.logging import get_logger
 from tflux.dtypes import Junction, Grid, GridFFT, Mesh, LinReg
@@ -133,6 +134,20 @@ def fourier_transform(grid: Grid, shift_fft=False, square_fft=False) -> GridFFT:
     q = np.fft.fftfreq(n=len(grid.x), d=config.dx)
     q = np.fft.fftshift(q)
     z_tilde = np.fft.fft2(grid.z)
+
+    def get_mean(z):
+        # Get mean z_q averaged over w
+        # logger.info(f"Dimensions: {z.shape}")
+        m_vector = np.mean(z, axis=1)
+        # logger.info(f"M-vector dimensions: {m_vector.shape}")
+        # print(m_vector[:20])
+        # TODO: on test sample, graph u_q vs q to show drift, show Jose and discuss. 
+
+        means = m_vector.reshape(-1, 1) @ np.ones((1, z.shape[1]))
+        print(means.shape)
+        return
+
+    get_mean(z_tilde)
 
     if shift_fft:
         z_tilde = np.fft.fftshift(z_tilde)
