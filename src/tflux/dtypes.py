@@ -207,6 +207,8 @@ class GridFFT():
     def __init__(self, q: np.ndarray, w: np.ndarray, z_tilde: np.ndarray, shifted=False, squared=False, log_scale=False, mask_applied=False):
         self.q = q
         self.w = w
+        self.z_base_fft = None  # Assigned in fourier_transform() method
+        self.z_variance = None  # Assigned in fourier_transform() method
         self.z_tilde = z_tilde
         self.shifted = shifted
         self.squared = squared

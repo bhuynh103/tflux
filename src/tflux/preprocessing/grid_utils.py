@@ -134,20 +134,16 @@ def fourier_transform(grid: Grid, shift_fft=False, square_fft=False) -> GridFFT:
     q = np.fft.fftfreq(n=len(grid.x), d=config.dx)
     q = np.fft.fftshift(q)
     z_tilde = np.fft.fft2(grid.z)
+    z_base_fft = np.fft.fft2(grid.z)
+    z_base_fft = np.fft.fftshift(z_base_fft)
+    z_base_fft_squared_mean = np.mean(np.abs(z_base_fft) ** 2, axis=1)  # temporal average
+    z_base_fft_mean_squared = np.mean(np.abs(z_base_fft), axis=1) ** 2  # temporal average
+    z_variance = z_base_fft_squared_mean - z_base_fft_mean_squared
 
-    def get_mean(z):
-        # Get mean z_q averaged over w
-        # logger.info(f"Dimensions: {z.shape}")
-        m_vector = np.mean(z, axis=1)
-        # logger.info(f"M-vector dimensions: {m_vector.shape}")
-        # print(m_vector[:20])
-        # TODO: on test sample, graph u_q vs q to show drift, show Jose and discuss. 
-
-        means = m_vector.reshape(-1, 1) @ np.ones((1, z.shape[1]))
-        print(means.shape)
-        return
-
-    get_mean(z_tilde)
+    # TODO: on test sample, graph u_q vs q to show drift, show Jose and discuss. 
+    # TODO: check if <u_q>^2 is comparable to <u_q^2>
+    # TODO: if comparable, take the difference reviewer suggestion, and verify scaling is boring
+    # TODO: FIRST subtract out the first three q bin, SECOND verify the uq squareds, THIRD do the subtraction and rerun analysis
 
     if shift_fft:
         z_tilde = np.fft.fftshift(z_tilde)
@@ -155,6 +151,24 @@ def fourier_transform(grid: Grid, shift_fft=False, square_fft=False) -> GridFFT:
         z_tilde = np.abs(z_tilde) ** 2
     
     grid_fft = GridFFT(q=q, w=w, z_tilde=z_tilde, shifted=shift_fft, squared=square_fft)
+    grid_fft.z_base_fft = z_base_fft
+    grid_fft.z_variance = z_variance
+
+    # logger.info(f"Z: {z_base_fft.shape}")
+    # logger.info(f"Z-squared: {z_tilde.shape}")
+
+    logger.info(f"Z-squared-mean: {z_base_fft_squared_mean.shape}\n{z_base_fft_squared_mean[:5]}")
+
+    logger.info(f"Z-mean-squared: {z_base_fft_mean_squared.shape}\n{z_base_fft_mean_squared[:5]}")
+
+    # Take the mean ratio to see the difference in magnitude of mean-squared vs squared-mean
+
+    ratio = np.divide(z_base_fft_mean_squared, z_base_fft_squared_mean)
+    logger.info(f"Ratio: {ratio}")
+    logger.info(f"Mean Ratio: {np.mean(ratio)}")
+
+    logger.info(f"Variance: {z_variance.shape}\n{z_variance[:5]}")
+    # Ratio ranges from 0.02 to 0.40
 
     return grid_fft
 
