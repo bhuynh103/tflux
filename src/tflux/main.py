@@ -39,7 +39,8 @@ def main():
     
     # Start pipeline -> Analyze sample WT -> Compare samples A and B
     with Timer(text="Pipeline: {:.3f}s", logger=logger.info):
-        sample_WT = run.run_pipeline(data_dir_path=input_dirs["WT"], output_dir_path=output_dir, sample_label="WT")
+        if config.analyze_sample_WT:
+            sample_WT = run.run_pipeline(data_dir_path=input_dirs["WT"], output_dir_path=output_dir, sample_label="WT")
 
         if config.compare_samples_ab:
             sample_a = run.run_pipeline(data_dir_path=input_dirs["control"], output_dir_path=output_dir, sample_label="control")
