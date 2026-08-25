@@ -133,42 +133,42 @@ def fourier_transform(grid: Grid, shift_fft=False, square_fft=False) -> GridFFT:
     w = np.fft.fftshift(w)
     q = np.fft.fftfreq(n=len(grid.x), d=config.dx)
     q = np.fft.fftshift(q)
-    z_tilde = np.fft.fft2(grid.z)
+
     z_base_fft = np.fft.fft2(grid.z)
-    z_base_fft = np.fft.fftshift(z_base_fft)
-    z_base_fft_squared_mean = np.mean(np.abs(z_base_fft) ** 2, axis=1)  # temporal average
-    z_base_fft_mean_squared = np.mean(np.abs(z_base_fft), axis=1) ** 2  # temporal average
-    z_variance = z_base_fft_squared_mean - z_base_fft_mean_squared
-
-    # TODO: on test sample, graph u_q vs q to show drift, show Jose and discuss. 
-    # TODO: check if <u_q>^2 is comparable to <u_q^2>
-    # TODO: if comparable, take the difference reviewer suggestion, and verify scaling is boring
-    # TODO: FIRST subtract out the first three q bin, SECOND verify the uq squareds, THIRD do the subtraction and rerun analysis
-
     if shift_fft:
-        z_tilde = np.fft.fftshift(z_tilde)
+        z_base_fft = np.fft.fftshift(z_base_fft)
+
+    # --- Diagnostics: compare <|u_q|^2>_w ("squared-mean") to <|u_q|>_w^2
+    # ("mean-squared") along q, averaging over w.
+    #
+    # Ratio ranges from ~0.02 to ~0.40 across junctions -- i.e. mean-squared
+    # is comparable in magnitude to squared-mean, not negligible. Per
+    # reviewer feedback, that means the raw squared amplitude used in the
+    # q-fit is contaminated by a non-fluctuating (DC-like) component in w
+    # rather than reflecting genuine temporal fluctuation alone. That
+    # component must be subtracted off before fitting:
+    #   Var_w(|u_q|) = <|u_q|^2>_w - <|u_q|>_w^2
+    # This is now done in GridFFT.fft_to_linreg_over for both the q- and
+    # w-marginal spectra, using z_base_fft below.
+    amp = np.abs(z_base_fft)
+    z_squared_mean = np.mean(amp ** 2, axis=1)   # <|u_q(w)|^2>_w
+    z_mean_squared = np.mean(amp, axis=1) ** 2   # <|u_q(w)|>_w^2
+    z_variance = z_squared_mean - z_mean_squared # Var_w(|u_q|), the debiased spectrum
+
+    ratio = np.divide(z_mean_squared, z_squared_mean)
+    logger.info(f"Z-squared-mean: {z_squared_mean.shape}\n{z_squared_mean[:5]}")
+    logger.info(f"Z-mean-squared: {z_mean_squared.shape}\n{z_mean_squared[:5]}")
+    logger.info(f"Ratio: {ratio}")
+    logger.info(f"Mean Ratio: {np.mean(ratio)}")
+    logger.info(f"Variance: {z_variance.shape}\n{z_variance[:5]}")
+
+    z_tilde = z_base_fft
     if square_fft:
         z_tilde = np.abs(z_tilde) ** 2
-    
+
     grid_fft = GridFFT(q=q, w=w, z_tilde=z_tilde, shifted=shift_fft, squared=square_fft)
     grid_fft.z_base_fft = z_base_fft
     grid_fft.z_variance = z_variance
-
-    # logger.info(f"Z: {z_base_fft.shape}")
-    # logger.info(f"Z-squared: {z_tilde.shape}")
-
-    logger.info(f"Z-squared-mean: {z_base_fft_squared_mean.shape}\n{z_base_fft_squared_mean[:5]}")
-
-    logger.info(f"Z-mean-squared: {z_base_fft_mean_squared.shape}\n{z_base_fft_mean_squared[:5]}")
-
-    # Take the mean ratio to see the difference in magnitude of mean-squared vs squared-mean
-
-    ratio = np.divide(z_base_fft_mean_squared, z_base_fft_squared_mean)
-    logger.info(f"Ratio: {ratio}")
-    logger.info(f"Mean Ratio: {np.mean(ratio)}")
-
-    logger.info(f"Variance: {z_variance.shape}\n{z_variance[:5]}")
-    # Ratio ranges from 0.02 to 0.40
 
     return grid_fft
 

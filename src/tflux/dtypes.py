@@ -224,15 +224,30 @@ class GridFFT():
 
     def fft_to_linreg_over(self, dim: str) -> LinReg:
         mask = self.get_mask(dim)
+        # |u(q, w)|, the unsquared FFT amplitude. Used instead of the
+        # pre-squared self.z_tilde so the mean-squared (DC-like, non-
+        # fluctuating) component can be subtracted out per axis below,
+        # rather than fitting the raw squared-mean directly.
+        amp = np.abs(self.z_base_fft)
         if dim == 'q':
             x = self.q[mask]
-            y = self.z_tilde.mean(axis=1)[mask] # Averages over omega
+            squared_mean = np.mean(amp ** 2, axis=1)  # <|u_q(w)|^2>_w
+            mean_squared = np.mean(amp, axis=1) ** 2  # <|u_q(w)|>_w^2
+            y = (squared_mean - mean_squared)[mask]   # Var_w(|u_q|)
             # logger.debug(f'q: {len(x)}, z: {len(y)}')
         if dim == 'w':
             x = self.w[mask]
-            y = self.z_tilde.mean(axis=0)[mask] # Averages over q
+            squared_mean = np.mean(amp ** 2, axis=0)  # <|u_w(q)|^2>_q
+            mean_squared = np.mean(amp, axis=0) ** 2  # <|u_w(q)|>_q^2
+            y = (squared_mean - mean_squared)[mask]   # Var_q(|u_w|)
             # logger.debug(f'w: {len(x)}, z: {len(y)}')
-        
+
+        # Drop any non-positive/non-finite debiased values (e.g. a bin
+        # where the amplitude barely fluctuates) before the log-log fit,
+        # since log10 of a non-positive number is undefined.
+        finite = np.isfinite(x) & np.isfinite(y) & (y > 0)
+        x, y = x[finite], y[finite]
+
         # log transform after masking
         x, y = self.log_transform(x, y)
         
@@ -242,9 +257,23 @@ class GridFFT():
 
     def get_mask(self, dim: str) -> np.ndarray:
         if dim == 'q':
-            mask = (self.q > 0) & (self.q < 10 ** config.TANGENT_CUTOFF)
+            axis = self.q
+            cutoff_mask = (axis > 0) & (axis < 10 ** config.TANGENT_CUTOFF)
         if dim == 'w':
-            mask = (self.w > 0) & (self.w < 10 ** config.TANGENT_CUTOFF_TIME)
+            axis = self.w
+            cutoff_mask = (axis > 0) & (axis < 10 ** config.TANGENT_CUTOFF_TIME)
+
+        # Additionally omit the LOW_FREQ_BIN_OMIT bins closest to zero (i.e.
+        # the smallest positive frequencies) that pass cutoff_mask, since
+        # finite-window/apodization leakage inflates these low-frequency
+        # bins independent of true drift.
+        mask = cutoff_mask.copy()
+        candidate_indices = np.flatnonzero(cutoff_mask)
+        if len(candidate_indices) > 0:
+            ordered = candidate_indices[np.argsort(axis[candidate_indices])]
+            omit_indices = ordered[:config.LOW_FREQ_BIN_OMIT]
+            mask[omit_indices] = False
+
         return mask
 
 
